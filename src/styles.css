@@ -38,7 +38,14 @@ p{margin:0}
 .device-txt{display:flex;flex-direction:column;min-width:0}
 .device-kicker{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
 .device-name{margin-top:6px;font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 116;font-size:clamp(1.45rem,3.6vw,1.95rem);line-height:1;letter-spacing:-.01em;text-wrap:balance}
-.device-meta{margin-top:7px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;color:var(--ink-dim)}
+.device-app{margin-top:9px;font-size:.88rem;line-height:1.45}
+.device-app a{color:var(--ink);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--amber) 70%,transparent);text-decoration-thickness:1px;text-underline-offset:3px;transition:text-decoration-color .15s}
+.device-app strong{font-weight:600}
+.device-app .nw{white-space:nowrap}
+.device-app svg{display:inline-block;width:11px;height:11px;margin-left:4px;vertical-align:baseline;fill:none;stroke:var(--amber);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.device-app a:hover{text-decoration-color:var(--amber)}
+.device-app a:hover svg{transform:translate(2px,-2px)}
+.device-app a:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:2px}
 .device-line{margin-top:12px;font-size:.92rem;color:var(--ink-dim);max-width:24rem}
 .device.no-3d .device-stage::after{content:"⌚";position:absolute;inset:0;display:grid;place-items:center;font-size:2.4rem}
 

@@ -30,6 +30,9 @@ const LOOK = {
   Watch_Strap: { color: [.016, .016, .018, 1], metal: 0, rough: .62 },
   Strap_Lock: { color: [.045, .045, .048, 1], metal: 1, rough: .3 },
   'Material.005': { color: [.035, .035, .037, 1], metal: 0, rough: .2 }, // back plate
+  // the back is a photo of a natural-titanium Ultra: darkening it keeps the engravings and sensors
+  'Material.006': { color: [.15, .15, .16, 1], metal: 0, rough: .3 },
+  'Material.008': { color: [.15, .15, .16, 1], metal: 0, rough: .3 },
 };
 for (const mat of root.listMaterials()){
   const look = LOOK[mat.getName()];
