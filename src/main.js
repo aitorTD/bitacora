@@ -31,6 +31,7 @@ async function loadLogbook(){
     Promise.all([listSeen(), import('./album/species.js')]).then(([rows, m]) => {
       const ids = new Set(m.SPECIES.map(s => s.id)), n = rows.filter(r => ids.has(r.species_id)).length;
       document.getElementById('albumCount').textContent = n + ' / ' + m.SPECIES.length;
+      document.getElementById('navAlbumCount').textContent = n + '/' + m.SPECIES.length;
     }).catch(() => {});
     const [dives, certs] = await Promise.all([listDives(), listCerts().catch(() => [])]);
     return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, certs, settings: DEFAULTS };

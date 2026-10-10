@@ -1,5 +1,6 @@
 /* Shared by the landing and the admin page. */
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 /* Night dive is the base palette; the day dive overrides it. JS sets data-dive before first paint. */
 :root{
   --abyss:#020a12;

@@ -1,7 +1,8 @@
 /*
  * The album: species a recreational diver can meet in Spanish waters.
  * regions: med = Mediterráneo (Baleares incluidas), atl = Atlántico peninsular, can = Canarias.
- * rare: cards that are a real stroke of luck; they get a special frame once found.
+ * rarity (added at the end of the file): 1 común, 2 poco común, 3 rara, 4 muy rara; it sets the card frame.
+ * hot (also at the end): the zones where it is easiest to see, with a weight 0–1, for the map in its card.
  * model: how src/album/models.js builds the low-poly figure (see the builders there).
  *
  * Fish paint: top/bottom body colours, fin colour and a list of marks drawn on the body,
@@ -140,7 +141,7 @@ export const SPECIES = [
   { id: 'tapaculo', name: 'Tapaculo', sci: 'Bothus podas', group: 'peces', regions: ['med', 'can'],
     fact: 'Un pez plano con los dos ojos en el mismo lado. Cambia de color para imitar la arena.',
     model: { kind: 'flatfish', paint: { top: '#a08c6c', spot: '#5a7aa6' } } },
-  { id: 'luna', name: 'Pez luna', sci: 'Mola mola', group: 'peces', regions: ['med', 'atl', 'can'], rare: true,
+  { id: 'luna', name: 'Pez luna', sci: 'Mola mola', group: 'peces', regions: ['med', 'atl', 'can'],
     fact: 'Uno de los peces óseos más pesados del mundo: puede pasar de los 1.000 kilos.',
     model: fish({ h: .8, w: .2, c: -.1, tailPow: .35, tail: 'clavus', dorsal: [-.75, -.45, .9], anal: [-.75, -.45, .9], eye: 1.1, mouth: .6 },
       { top: '#7f8e98', bottom: '#d9e1e5', fin: '#6f7c86', marks: [['spots', .15, '#b8c4cc']] }) },
@@ -150,7 +151,7 @@ export const SPECIES = [
   { id: 'congrio', name: 'Congrio', sci: 'Conger conger', group: 'peces', regions: ['med', 'atl', 'can'],
     fact: 'De día asoma la cabeza desde las grietas; de noche sale a cazar.',
     model: { kind: 'eel', paint: { base: '#4b5258', belly: '#c9ced0', fin: '#1d2124' }, conger: true } },
-  { id: 'caballito', name: 'Caballito de mar', sci: 'Hippocampus guttulatus', group: 'peces', regions: ['med', 'atl', 'can'], rare: true,
+  { id: 'caballito', name: 'Caballito de mar', sci: 'Hippocampus guttulatus', group: 'peces', regions: ['med', 'atl', 'can'],
     fact: 'El macho es el que lleva los huevos en una bolsa hasta que nacen las crías.',
     model: { kind: 'seahorse', paint: { base: '#8c6a3a', spot: '#efe2c0' } } },
 
@@ -158,13 +159,13 @@ export const SPECIES = [
   { id: 'pastinaca', name: 'Pastinaca', sci: 'Dasyatis pastinaca', group: 'elasmo', regions: ['med', 'atl', 'can'],
     fact: 'Se entierra en la arena y lleva un aguijón en la cola.',
     model: { kind: 'ray', shape: 'sting', paint: { top: '#6f6352', edge: '#9a8b72' } } },
-  { id: 'mantelina', name: 'Mantelina', sci: 'Gymnura altavela', group: 'elasmo', regions: ['can', 'med'], rare: true,
+  { id: 'mantelina', name: 'Mantelina', sci: 'Gymnura altavela', group: 'elasmo', regions: ['can', 'med'],
     fact: 'La raya mariposa: mucho más ancha que larga.',
     model: { kind: 'ray', shape: 'butterfly', paint: { top: '#5d5444', edge: '#8a7d64' } } },
   { id: 'torpedo', name: 'Torpedo', sci: 'Torpedo marmorata', group: 'elasmo', regions: ['med', 'atl', 'can'],
     fact: 'Caza dando descargas eléctricas. Mejor no tocarlo.',
     model: { kind: 'ray', shape: 'torpedo', paint: { top: '#6a5238', edge: '#8a6f4e', spot: '#3e2e1e' } } },
-  { id: 'angelote', name: 'Angelote', sci: 'Squatina squatina', group: 'elasmo', regions: ['can'], rare: true,
+  { id: 'angelote', name: 'Angelote', sci: 'Squatina squatina', group: 'elasmo', regions: ['can'],
     fact: 'Tiburón aplanado en peligro crítico. Canarias es uno de sus últimos refugios.',
     model: { kind: 'ray', shape: 'angel', paint: { top: '#8a7a5e', edge: '#a8987a', spot: '#e6dcc4' } } },
   { id: 'pintarroja', name: 'Pintarroja', sci: 'Scyliorhinus canicula', group: 'elasmo', regions: ['med', 'atl'],
@@ -207,7 +208,7 @@ export const SPECIES = [
   { id: 'flabelina', name: 'Flabelina', sci: 'Paraflabellina affinis', group: 'molus', regions: ['med'],
     fact: 'Violeta, roba las células urticantes de las hidras que se come y las usa para defenderse.',
     model: { kind: 'nudibranch', style: 'cerata', paint: { base: '#b04fd0', tip: '#e26ad8' } } },
-  { id: 'nacra', name: 'Nacra', sci: 'Pinna nobilis', group: 'molus', regions: ['med'], rare: true,
+  { id: 'nacra', name: 'Nacra', sci: 'Pinna nobilis', group: 'molus', regions: ['med'],
     fact: 'El mayor bivalvo del Mediterráneo, hoy en peligro crítico. Verla viva es un lujo.',
     model: { kind: 'pinna' } },
 
@@ -243,11 +244,74 @@ export const SPECIES = [
     model: { kind: 'coral' } },
 
   /* ---------- Grandes ---------- */
-  { id: 'tortuga', name: 'Tortuga boba', sci: 'Caretta caretta', group: 'grandes', regions: ['med', 'atl', 'can'], rare: true,
+  { id: 'tortuga', name: 'Tortuga boba', sci: 'Caretta caretta', group: 'grandes', regions: ['med', 'atl', 'can'],
     fact: 'Cruza océanos enteros y vuelve a la playa donde nació para poner sus huevos.',
     model: { kind: 'turtle' } },
-  { id: 'delfin', name: 'Delfín mular', sci: 'Tursiops truncatus', group: 'grandes', regions: ['med', 'atl', 'can'], rare: true,
+  { id: 'delfin', name: 'Delfín mular', sci: 'Tursiops truncatus', group: 'grandes', regions: ['med', 'atl', 'can'],
     fact: 'Cruzarse con uno bajo el agua es de las cosas que no se olvidan.',
     model: fish({ h: .24, w: .22, c: .25, tailPow: .7, tail: 'fluke', dorsal: [-.2, .15, .3, 'dolphin'], pect: .35, eye: .8, beak: true, smooth: true },
       { top: '#5f6b74', bottom: '#d8dde0', fin: '#56616a', marks: [] }) },
 ];
+
+/* ---------- how easy each one is to meet diving in Spain ---------- */
+export const RARITY = [null, { id: 'comun', name: 'Común' }, { id: 'poco', name: 'Poco común' }, { id: 'rara', name: 'Rara' }, { id: 'muy', name: 'Muy rara' }];
+const TIER = {
+  2: ['mero', 'abade', 'denton', 'espeton', 'arana', 'trompeta', 'ballesta', 'catalufa', 'anthias', 'corvina', 'limon', 'congrio', 'calamar',
+      'langosta', 'cigarra', 'centollo', 'vaca', 'coral-naranja', 'torpedo', 'pintarroja', 'pastinaca', 'tapaculo', 'ermitano'],
+  3: ['caballito', 'mantelina', 'angelote', 'tortuga', 'luna'],
+  4: ['delfin', 'nacra'],
+};
+for (const sp of SPECIES) sp.rarity = +(Object.keys(TIER).find(t => TIER[t].includes(sp.id)) || 1);
+
+/* ---------- where each one is easiest to see (for the map in its card) ----------
+   By default every zone of the species' regions, at its usual weight; these override it. */
+const HOT = {
+  abade: { can: 1 },
+  maragota: { galicia: 1, cantabrico: 1 },
+  trompeta: { can: 1 }, catalufa: { can: 1 }, tamboril: { can: 1 }, fula: { can: 1 }, diadema: { can: 1 },
+  angelote: { 'gran-canaria': 1, lanzarote: .9, tenerife: .7, fuerteventura: .6, 'la-gomera': .3 },
+  mantelina: { tenerife: 1, 'gran-canaria': .9, lanzarote: .5, alboran: .3 },
+  'coral-naranja': { alboran: 1, estrecho: .9, 'cabo-gata': .6 },
+  nacra: { baleares: .9, 'cabo-gata': .5, 'costa-brava': .4, levante: .4 },
+  caballito: { 'mar-menor': 1, galicia: .7, levante: .4, 'cabo-gata': .4, lanzarote: .4 },
+  luna: { estrecho: 1, baleares: .6, 'costa-brava': .5, galicia: .4, cantabrico: .3 },
+  delfin: { estrecho: .8, alboran: .7, galicia: .6, 'costa-brava': .3, tenerife: .6, 'la-gomera': .5 },
+  tortuga: { alboran: .7, levante: .6, baleares: .6, 'cabo-gata': .6, 'gran-canaria': .7, tenerife: .7, lanzarote: .6, fuerteventura: .6 },
+  'huevo-frito': { 'mar-menor': 1, levante: .8, baleares: .7, 'costa-brava': .6, 'cabo-gata': .5 },
+  pelagia: { baleares: .8, 'costa-brava': .8, levante: .6, alboran: .5, estrecho: .4, cantabrico: .3 },
+  gorgonia: { 'costa-brava': 1, baleares: .7, 'cabo-gata': .6, alboran: .6, levante: .4 },
+  corvina: { 'costa-brava': 1, baleares: .8, 'cabo-gata': .8, alboran: .5 },
+  vieja: { can: 1, alboran: .2 },
+  anthias: { 'costa-brava': .8, baleares: .7, alboran: .6, 'cabo-gata': .6, tenerife: .5, 'el-hierro': .5 },
+  pintarroja: { galicia: 1, cantabrico: .9, 'costa-brava': .6, baleares: .4 },
+};
+export const ZONES = {
+  'costa-brava': { name: 'Costa Brava', lon: 3.25, lat: 41.95, region: 'med', w: .9 },
+  baleares: { name: 'Baleares', lon: 2.9, lat: 39.55, region: 'med', w: 1 },
+  levante: { name: 'Levante', lon: .05, lat: 38.75, region: 'med', w: .8 },
+  'mar-menor': { name: 'Mar Menor', lon: -.8, lat: 37.7, region: 'med', w: .5 },
+  'cabo-gata': { name: 'Cabo de Gata', lon: -2.05, lat: 36.75, region: 'med', w: .9 },
+  alboran: { name: 'Granada y Málaga', lon: -3.85, lat: 36.68, region: 'med', w: .9 },
+  estrecho: { name: 'Estrecho', lon: -5.55, lat: 36.0, region: 'med', w: .6 },
+  cadiz: { name: 'Golfo de Cádiz', lon: -6.6, lat: 36.6, region: 'atl', w: .5 },
+  galicia: { name: 'Rías gallegas', lon: -8.85, lat: 42.55, region: 'atl', w: 1 },
+  cantabrico: { name: 'Cantábrico', lon: -4.6, lat: 43.52, region: 'atl', w: .8 },
+  lanzarote: { name: 'Lanzarote', lon: -13.6, lat: 29.0, region: 'can', w: .9 },
+  fuerteventura: { name: 'Fuerteventura', lon: -14.05, lat: 28.35, region: 'can', w: .7 },
+  'gran-canaria': { name: 'Gran Canaria', lon: -15.6, lat: 27.95, region: 'can', w: .9 },
+  tenerife: { name: 'Tenerife', lon: -16.55, lat: 28.3, region: 'can', w: 1 },
+  'la-gomera': { name: 'La Gomera', lon: -17.2, lat: 28.1, region: 'can', w: .6 },
+  'la-palma': { name: 'La Palma', lon: -17.85, lat: 28.65, region: 'can', w: .6 },
+  'el-hierro': { name: 'El Hierro', lon: -18.0, lat: 27.73, region: 'can', w: .8 },
+};
+// zone weights for one species: {zoneId: weight}; a region key (med/atl/can) in HOT means all its zones
+export function hotspots(sp){
+  const out = {}, spec = HOT[sp.id];
+  if (spec){
+    for (const [k, w] of Object.entries(spec)){
+      if (ZONES[k]) out[k] = w;
+      else for (const [id, z] of Object.entries(ZONES)) if (z.region === k) out[id] = w * z.w;
+    }
+  } else for (const [id, z] of Object.entries(ZONES)) if (sp.regions.includes(z.region)) out[id] = z.w;
+  return out;
+}

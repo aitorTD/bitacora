@@ -13,6 +13,9 @@ body{min-height:100vh;background:linear-gradient(180deg,var(--w1),var(--abyss) 4
 #panel[hidden]{display:none}
 #notConfigured{max-width:40rem;width:100%;margin-inline:auto}
 .col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.album-card{grid-column:1 / -1}
+.album-head-side{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.album-card .album-ui .legend{margin-top:6px}
 .summary{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
 .kpi{display:flex;flex-direction:column;gap:6px;padding:16px 20px;background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
 .kpi b{font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 118;font-size:2rem;line-height:1;font-variant-numeric:tabular-nums}
@@ -41,7 +44,7 @@ input:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
 .error{margin:0 0 6px;color:#ff8a7a;font-size:.88rem}
 :root[data-dive="day"] .error{color:#b3261e}
 
-.btn{font:600 .92rem/1 var(--f-body);padding:12px 16px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.btn{text-decoration:none;display:inline-flex;align-items:center;font:600 .92rem/1 var(--f-body);padding:12px 16px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
 .btn:hover{border-color:var(--cyan)}
 .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}

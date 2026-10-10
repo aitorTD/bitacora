@@ -42,10 +42,13 @@
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="veil" aria-hidden="true"></div>
 
-<div class="mode" role="group" aria-label="Tipo de inmersión">
-  <button type="button" data-mode="day" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Día</button>
-  <button type="button" data-mode="night" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>Noche</button>
-</div>
+<nav class="topnav" aria-label="Navegación">
+  <a class="nav-album" href="/album" aria-label="Álbum de especies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.4 5.2 8 4.6 4 4.8v13.4c4-.2 6.4.4 8 1.7 1.6-1.3 4-1.9 8-1.7V4.8c-4-.2-6.4.4-8 1.7z"/><path d="M12 6.5v13.4"/></svg><span class="nav-label">Álbum</span><span class="nav-count" id="navAlbumCount"></span></a>
+  <div class="mode" role="group" aria-label="Tipo de inmersión">
+    <button type="button" data-mode="day" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Día</button>
+    <button type="button" data-mode="night" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>Noche</button>
+  </div>
+</nav>
 
 <aside class="gauge" aria-label="Profundidad actual">
   <div>

@@ -68,11 +68,14 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 
 ## Álbum de especies (/album)
 
-Un álbum de cromos con 59 especies que se pueden ver buceando en España (Mediterráneo, Atlántico y Canarias). Cada cromo es una figura 3D low poly generada en código; las que no he visto salen en silueta con su nombre. Para desbloquear una, entra en `/admin` y luego abre `/album`: con la sesión iniciada, cada cromo tiene «Marcar como vista» (con fecha y sitio opcionales).
+Un álbum de cromos con 59 especies que se pueden ver buceando en España (Mediterráneo, Atlántico y Canarias). Cada cromo es una figura 3D low poly generada en código; las que no he visto salen en silueta con su nombre, y el marco indica la rareza (común, poco común, rara, muy rara). Al abrir un cromo se ve la figura en 3D, sus datos y un mapa con las zonas donde es más fácil verla.
 
-- `src/album/species.js`: el catálogo (nombre, nombre científico, grupo, zonas, dato curioso y cómo se dibuja).
-- `src/album/models.js`: los generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).
-- `src/album/sheet.html`: hoja de pruebas solo para desarrollo (`/src/album/sheet.html` con `npm run dev`) que dibuja todas las figuras juntas.
+El álbum público es de solo lectura. Se edita desde el panel (`/admin`, tarjeta «Especies vistas»), que muestra el mismo álbum: al tocar un cromo se marca como visto (con fecha y sitio opcionales) o se quita, y el cambio sale al momento en la web. Lo visto se guarda en Supabase, tabla `species_seen` (migración 004); el catálogo vive en el código.
+
+- `src/album/species.js`: catálogo (nombre, nombre científico, grupo, zonas, dato curioso, rareza, zonas calientes y cómo se dibuja).
+- `src/album/models.js`: generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).
+- `src/album/ui.js` + `ui.css`: el componente del álbum (rejilla, filtros, visor y mapa), usado por la página pública y por el panel.
+- `src/album/sheet.html`: hoja de pruebas solo para desarrollo (`/src/album/sheet.html` con `npm run dev`).
 
 ## Easter eggs
 

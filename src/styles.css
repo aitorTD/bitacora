@@ -154,11 +154,18 @@ p{margin:0}
   .veil{background:linear-gradient(180deg,var(--veil-b),var(--veil-a))}
 }
 /* Day / night switch */
-.mode{position:fixed;z-index:5;right:clamp(12px,2.5vw,32px);top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--hud);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.topnav{position:fixed;z-index:5;right:clamp(12px,2.5vw,32px);top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;gap:8px}
+.nav-album{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:999px;background:var(--hud);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--ink);text-decoration:none;font:500 .7rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;transition:border-color .15s}
+.nav-album svg{width:16px;height:16px;flex:none}
+.nav-album:hover{border-color:var(--amber)}
+.nav-album:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.nav-count{color:var(--amber);letter-spacing:.04em}
+.nav-count:empty{display:none}
+.mode{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--hud);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .mode button{display:inline-flex;align-items:center;gap:6px;font:500 .7rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);background:transparent;border:0;border-radius:999px;padding:8px 12px;cursor:pointer}
 .mode button svg{width:14px;height:14px;flex:none}
 .mode button:hover{color:var(--ink)}
 .mode button[aria-pressed="true"]{background:var(--amber);color:var(--on-amber)}
 .mode button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-@media (max-width:720px){.mode{left:12px;right:auto;top:calc(env(safe-area-inset-top,0px) + 10px)}.mode button{padding:8px 10px}}
+@media (max-width:720px){.topnav{left:12px;right:auto;top:calc(env(safe-area-inset-top,0px) + 10px);gap:6px}.mode button{padding:8px 9px;font-size:0;gap:0}.mode button svg{width:15px;height:15px}.nav-album{height:34px;padding:0 10px}.nav-label,.nav-count{display:none}}
 @media (prefers-reduced-motion:reduce){.cue span{animation:none}#scene{transition:none}}

@@ -22,6 +22,7 @@ function toast(msg, isError = false){
 function explain(err){
   const m = (err && (err.message || err.error_description)) || String(err);
   if (/invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if (/species_seen/i.test(m) && /could not find|schema cache|does not exist/i.test(m)) return 'Falta la tabla del álbum: ejecuta supabase/migrations/004_album.sql en el SQL Editor.';
   if (/certifications/i.test(m) && /could not find|schema cache|does not exist/i.test(m)) return 'Falta preparar las titulaciones en Supabase: ejecuta supabase/migrations/003_formacion.sql en el SQL Editor.';
   if (/settings|hidden|no_sac/i.test(m)) return 'Falta preparar los ajustes en Supabase: ejecuta supabase/migrations/002_ajustes.sql en el SQL Editor.';
   if (/could not find the table|schema cache|relation .* does not exist/i.test(m)) return 'La tabla de inmersiones aún no existe en Supabase. Ejecuta supabase/schema.sql en el SQL Editor y vuelve a probar.';
@@ -43,6 +44,35 @@ async function enterPanel(session){
   $('who').textContent = session.user.email; $('who').hidden = false; $('logout').hidden = false;
   show('panel');
   await refresh();
+  watchAlbum();
+}
+
+/* ---------- species album: the same album as the public page, but editable ---------- */
+let albumLoaded = false;
+function watchAlbum(){
+  if (albumLoaded) return;
+  // three.js and the figures only load when the album card comes into view
+  const io = new IntersectionObserver(entries => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    io.disconnect(); albumLoaded = true; loadAlbum();
+  }, { rootMargin: '300px' });
+  io.observe($('albumCard'));
+}
+async function loadAlbum(){
+  const holder = $('adminAlbum');
+  try {
+    const [{ createAlbum }, , api] = await Promise.all([import('./album/ui.js'), import('./album/ui.css'), import('./lib/supabase.js')]);
+    const { SPECIES } = await import('./album/species.js');
+    let rows = [];
+    try { rows = await api.listSeen(); } catch (err){ toast(explain(err), true); }
+    const setCount = n => { $('albumCount').textContent = `${n} / ${SPECIES.length}`; };
+    setCount(rows.filter(r => SPECIES.some(s => s.id === r.species_id)).length);
+    holder.innerHTML = '';
+    createAlbum(holder, { editable: true, api, seen: rows, showProgress: false,
+      onChange: (msg, seen, isError) => { toast(msg, isError); setCount(seen.size); } });
+  } catch (err){
+    holder.innerHTML = '<p class="empty">No se pudo cargar el álbum.</p>'; console.error(err);
+  }
 }
 function leavePanel(){
   $('who').hidden = true; $('logout').hidden = true;
