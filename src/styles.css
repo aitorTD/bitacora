@@ -86,7 +86,12 @@ p{margin:0}
 .dive-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
 .dive-head h3{margin:0;font-family:var(--f-display);font-weight:720;font-variation-settings:"wdth" 108;font-size:1.25rem}
 .dive-head time{font-family:var(--f-mono);font-size:.75rem;color:var(--ink-dim)}
-.dive-place{font-size:.82rem;color:var(--ink-dim);margin-top:2px}
+.dive-place{font-size:.78rem;color:var(--ink-dim);margin-top:2px;font-family:var(--f-mono)}
+.dive-place a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--line)}
+.dive-place a:hover{color:var(--ink)}
+.dive-no{font-family:var(--f-mono);font-size:.72rem;font-weight:500;color:var(--amber);letter-spacing:.06em;margin-left:6px;vertical-align:middle}
+.dive-notes{margin-top:10px;font-size:.9rem;color:var(--ink);border-left:2px solid var(--amber);padding-left:10px}
+.empty{margin-top:18px;color:var(--ink-dim);font-size:.95rem}
 .dive-facts{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-family:var(--f-mono);font-size:.8rem;font-variant-numeric:tabular-nums}
 .dive-facts span em{font-style:normal;color:var(--ink-dim);margin-right:6px}
 .profile{position:relative;margin-top:8px}
