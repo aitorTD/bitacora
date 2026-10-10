@@ -66,6 +66,7 @@ p{margin:0}
 .dstat-val small{font-family:var(--f-body);font-size:.58em;font-weight:500;color:var(--ink-dim);margin-left:3px}
 .dstat-lbl{margin-top:3px;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
 .dstat-sub{font-size:.74rem;color:var(--ink-dim);margin-top:1px}
+.no-profile{margin:0;padding:14px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;color:var(--ink-dim)}
 .dive-notes{margin:0;font-size:.92rem;color:var(--ink-dim);font-style:italic}
 .dive-notes::before{content:"“";color:var(--amber);margin-right:2px}
 .dive-notes::after{content:"”";color:var(--amber);margin-left:1px}

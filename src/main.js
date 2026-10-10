@@ -1,6 +1,6 @@
 import './styles.css';
 import localDives from './data/dives.json';
-import { summarize, sac, statOn } from './lib/logbook.js';
+import { summarize, sac, statOn, normalizeDive } from './lib/logbook.js';
 
 var MAXD = 40;
 var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -33,7 +33,7 @@ async function loadLogbook(){
     return { dives: localDives, settings: DEFAULTS };
   }
 }
-loadLogbook().then(({ dives, settings }) => renderLogbook(dives, settings));
+loadLogbook().then(({ dives, settings }) => renderLogbook(dives.map(normalizeDive), settings));
 
 /* ---------- Small graphics for each statistic on a dive card (40×40, theme colours) ---------- */
 function clamp01(v){ return Math.max(0, Math.min(1, v || 0)); }
@@ -127,6 +127,8 @@ function renderLogbook(dives, settings){
   if (!dives.length) divesEl.innerHTML = '<p class="empty">Aquí aparecerán los perfiles cuando importe mis inmersiones.</p>';
   dives.forEach(function(dv, idx){
     var pts = dv.profile;
+    var hasProfile = pts.length > 1;
+    if (!hasProfile) pts = [[0, 0], [dv.duration || 1, 0]];   // placeholder so the chart maths below stays valid
     var W = 320, H = 140, ml = 34, mr = 10, mt = 10, mb = 22;
     var yStep = dv.maxDepth > 20 ? 10 : 5;
     var yMax = Math.ceil(dv.maxDepth / yStep) * yStep, xMax = dv.duration;
@@ -171,7 +173,7 @@ function renderLogbook(dives, settings){
     };
     if (on('maxDepth')) tile('max', icoDepth(dv.maxDepth / 40), fmt(dv.maxDepth), 'm', 'Prof. máxima');
     if (on('time')) tile('time', icoRing(dv.duration / 3600), String(Math.round(dv.duration / 60)), 'min', 'Duración');
-    if (on('avgDepth') && dv.avgDepth != null) tile('avg', icoLevel(dv.avgDepth / dv.maxDepth), fmt(dv.avgDepth), 'm', 'Prof. media');
+    if (on('avgDepth') && dv.avgDepth > 0) tile('avg', icoLevel(dv.avgDepth / dv.maxDepth), fmt(dv.avgDepth), 'm', 'Prof. media');
     if (on('minTemp') && dv.minTemp != null) tile('temp', icoThermo((dv.minTemp - 5) / 25), fmt(dv.minTemp), '°C', 'Agua',
       dv.maxTemp != null && dv.maxTemp - dv.minTemp >= .5 ? 'hasta ' + fmt(dv.maxTemp) + ' °C' : '');
     if (dv.tank && dv.tank.start != null) tile('tank', icoTank(dv.tank.end / dv.tank.start), dv.tank.start + '→' + dv.tank.end, '', 'Botella · bar', fmt(dv.tank.volume, 0) + ' L · ' + gasName(dv.tank.gas));
@@ -187,12 +189,14 @@ function renderLogbook(dives, settings){
       '<header class="dive-head"><p class="dive-kicker"><time datetime="' + esc(dv.start) + '">' + esc(kicker) + '</time>' + badge + '</p>' +
       '<h3>' + esc(dv.site.name) + '</h3>' +
       (place ? '<a class="dive-place" href="https://www.openstreetmap.org/?mlat=' + dv.site.lat + '&amp;mlon=' + dv.site.lon + '#map=14/' + dv.site.lat + '/' + dv.site.lon + '" target="_blank" rel="noopener">' + place + '</a>' : '') + '</header>' +
-      '<div class="profile">' + svg + '<div class="tip" hidden></div></div>' +
+      (hasProfile ? '<div class="profile">' + svg + '<div class="tip" hidden></div></div>'
+        : '<p class="no-profile">Inmersión registrada a mano: sin perfil de profundidad.</p>') +
       (tilesHtml.length ? '<div class="dstats">' + tilesHtml.join('') + '</div>' : '') +
       (dv.notes ? '<p class="dive-notes">' + esc(dv.notes) + '</p>' : '');
     divesEl.appendChild(card);
 
-    var svgEl = card.querySelector('svg'), hov = card.querySelector('.hover'), hx = card.querySelector('.hx'), hc = card.querySelector('.hc'), tip = card.querySelector('.tip');
+    if (!hasProfile) return;
+    var svgEl = card.querySelector('.profile svg'), hov = card.querySelector('.hover'), hx = card.querySelector('.hx'), hc = card.querySelector('.hc'), tip = card.querySelector('.tip');
     function move(ev){
       var r = svgEl.getBoundingClientRect();
       var sx = (ev.clientX - r.left) / r.width * W;

@@ -60,7 +60,10 @@ function readDive(d, ctx){
 
   const duration = num(after.diveduration) ?? (samples.length ? samples[samples.length - 1].t : null);
   const maxDepth = num(after.greatestdepth) ?? Math.max(0, ...samples.map(s => s.z));
-  const avgDepth = num(after.averagedepth) ?? timeWeightedAverage(samples);
+  // dives logged by hand in Pro Dive have no samples and come with an average depth of 0: unknown
+  let avgDepth = num(after.averagedepth);
+  if (avgDepth == null || (avgDepth <= 0 && samples.length)) avgDepth = samples.length ? timeWeightedAverage(samples) : null;
+  if (avgDepth != null && avgDepth <= 0) avgDepth = null;
   const temps = samples.filter(s => s.k !== null).map(s => [s.t, kToC(s.k)]);
   const minTemp = after.lowesttemperature !== undefined ? kToC(num(after.lowesttemperature)) : (temps.length ? Math.min(...temps.map(x => x[1])) : null);
 
