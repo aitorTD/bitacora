@@ -25,7 +25,10 @@ export function initScene(dive){
   const small = innerWidth < 720;
   const lowPower = small || (navigator.hardwareConcurrency || 8) <= 4;
   // resolution adapts to the device: it starts sharp and steps down if frames come in slow
-  const PR_MAX = Math.min(devicePixelRatio || 1, small ? 1.5 : 2), PR_MIN = Math.min(PR_MAX, small ? .8 : 1);
+  const PR_MAX = Math.min(devicePixelRatio || 1, small ? 1.5 : 1.75), PR_MIN = Math.min(PR_MAX, small ? .8 : 1);
+  // multisampling only where pixels are big enough for jagged edges to show; on retina screens the
+  // density already smooths them and 4x MSAA on a half-float buffer was the costliest thing on screen
+  const msaa = () => (!lowPower && pr <= 1.25 ? 4 : 0);
   let pr = PR_MAX;
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight, false);
@@ -292,19 +295,13 @@ export function initScene(dive){
       };
     });
     boat.add(m);
-    // at night a small warm lantern on the cabin, so the ship is still there in the dark
-    const box = new THREE.Box3().setFromObject(m);
-    const lantern = new THREE.Mesh(glowGeo, glowMaterial('#ffb35c', 2.2));
-    lantern.material.depthTest = false;
-    lantern.position.set(0, box.max.y * .5, 0); lantern.scale.set(1.3, 1.3, 1); lantern.renderOrder = 4;
-    boat.add(lantern); billboards.push(lantern); boat.userData.lantern = lantern;
   }).catch(err => console.warn('Boat failed to load', err));
   // same swell as the sea surface shader (WAVES), sampled at the hull
   const swell = (x, z, t) => .14 * Math.sin(x * .32 + t * 1.05) + .09 * Math.sin(z * .47 - t * .85 + x * .18) + .045 * Math.sin((x + z) * 1.25 + t * 1.6) + .022 * Math.sin(x * 2.9 - z * 2.2 + t * 2.2);
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
-  const bubMat = new THREE.MeshStandardMaterial({color:'#dff6ff', roughness:.05, metalness:0, transparent:true, opacity:.55, emissive:'#8fd6ee', emissiveIntensity:.25});
+  const bubMat = new THREE.MeshStandardMaterial({color:'#dff6ff', roughness:.22, metalness:0, transparent:true, opacity:.55, emissive:'#8fd6ee', emissiveIntensity:.25});
   const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), bubMat, BUB);
   bubbles.instanceMatrix.setUsage(THREE.DynamicDrawUsage); bubbles.frustumCulled = false;
   const bub = Array.from({length:BUB}, () => ({alive:false, p:new THREE.Vector3(), s:0, life:0, ph:rand() * 6}));
@@ -734,11 +731,17 @@ export function initScene(dive){
   }
 
   /* ---------- Post-processing ---------- */
-  const target = new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, { type: THREE.HalfFloatType, samples: lowPower ? 0 : 4 });
+  const target = new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, { type: THREE.HalfFloatType, samples: msaa() });
   const composer = new EffectComposer(renderer, target);
   composer.setPixelRatio(pr);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), .3, .6, .82);
+  // The bloom blurs through several halving steps, so one invalid pixel (NaN, or a highlight past the
+  // half-float range) spreads into a black block. Clean the input before it gets there.
+  bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace(
+    'vec4 texel = texture2D( tDiffuse, vUv );',
+    'vec4 texel = texture2D( tDiffuse, vUv ); if (any(notEqual(texel, texel))) texel = vec4(0.); texel.rgb = min(texel.rgb, vec3(24.));');
+  bloom.materialHighPassFilter.needsUpdate = true;
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -763,6 +766,8 @@ export function initScene(dive){
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
     renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
     composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+    const sm = msaa();
+    for (const rt of [composer.renderTarget1, composer.renderTarget2]) if (rt.samples !== sm){ rt.samples = sm; rt.dispose(); }
     snow.uniforms.uPR.value = glow.uniforms.uPR.value = pr;
   }
   addEventListener('resize', applySize);
@@ -771,9 +776,9 @@ export function initScene(dive){
   const perf = { n: 0, sum: 0, good: 0, warm: 0 };
   function watchPerf(raw){
     perf.warm += raw; if (perf.warm < 3 || document.hidden) return;   // ignore start-up and shader compiles
-    perf.sum += raw; if (++perf.n < 90) return;
+    perf.sum += raw; if (++perf.n < 60) return;
     const avg = perf.sum / perf.n; perf.n = perf.sum = 0;
-    if (avg > 1 / 40 && pr > PR_MIN){ pr = Math.max(PR_MIN, pr - .25); perf.good = 0; applySize(); }
+    if (avg > 1 / 48 && pr > PR_MIN){ pr = Math.max(PR_MIN, pr - .25); perf.good = 0; applySize(); }
     else if (avg < 1 / 55 && pr < PR_MAX && ++perf.good >= 4){ pr = Math.min(PR_MAX, pr + .25); perf.good = 0; applySize(); }
   }
 
@@ -902,7 +907,6 @@ export function initScene(dive){
       boat.rotation.set((swell(bx, bz + 3, t) - swell(bx, bz - 3, t)) * .08, boat.userData.yaw + Math.sin(t * .05) * .06, (swell(bx + 2, bz, t) - swell(bx - 2, bz, t)) * .14 + Math.sin(t * .6) * .02, 'YXZ');
       boatHaze.uHaze.value.setRGB(.42, .67, .86).lerp(tmpB.setRGB(.03, .055, .11), n);
       boatHaze.uHazeK.value = mix(.22, .42, n);
-      if (boat.userData.lantern) boat.userData.lantern.material.uniforms.uOpacity.value = smooth(.4, 1, n) * (.75 + .1 * Math.sin(t * 2.3) + .05 * Math.sin(t * 7.1));
     }
     surface.visible = camY > -24;
     surfMat.uniforms.uTime.value = t; surfMat.uniforms.uFade.value = Math.exp(-d / 7); surfMat.uniforms.uFog.value.copy(fogCol); surfMat.uniforms.uNight.value = n;
@@ -1040,6 +1044,7 @@ export function initScene(dive){
     if (firstFrame){ firstFrame = false; canvas.classList.add('ready'); }
     requestAnimationFrame(frame);
   }
+  try { renderer.compile(scene, camera); } catch (e) {}
   requestAnimationFrame(frame);
   if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, easterEgg, lightAim, rig: () => diverRig };
 }

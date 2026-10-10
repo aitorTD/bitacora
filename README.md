@@ -62,7 +62,7 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 
 ## Easter eggs
 
-En la superficie, a lo lejos, flota el barco tienda de Beedle de The Wind Waker (`public/models/beedle-boat.glb`, convertido con `scripts/convert-boat.mjs`); de noche lleva un farolillo encendido.
+En la superficie, a lo lejos, flota el barco tienda de Beedle de The Wind Waker (`public/models/beedle-boat.glb`, convertido con `scripts/convert-boat.mjs`).
 
 Al llegar al fondo, la luz del submarinista se posa sobre una máscara nomai de Outer Wilds medio enterrada en la arena. El sitio se calcula para que quede siempre a la vista (a la derecha del texto en ordenador, debajo en el móvil); es el grupo `easterEgg` de `src/scene.js`.
 
