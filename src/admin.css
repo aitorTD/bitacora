@@ -130,3 +130,13 @@ label.btn{cursor:pointer}
 @media (max-width:520px){.who{display:none}.bar{padding-block:10px}.card-head h2{font-size:1.35rem}}
 .on-touch{display:none}
 @media (hover:none) and (pointer:coarse){.on-fine{display:none}.on-touch{display:inline}}
+.row-note{margin-top:3px;font-size:.8rem;font-style:italic;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-note::before{content:"“"}.row-note::after{content:"”"}
+.notes-edit{grid-column:2 / -1;display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.notes-edit .label{display:flex;flex-direction:column;gap:2px;font-size:.85rem;color:var(--ink)}
+.notes-edit .label span{font-size:.78rem;color:var(--ink-dim)}
+.notes-edit textarea{font:inherit;font-size:.92rem;line-height:1.45;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:4px;padding:10px 12px;width:100%;min-width:0;resize:vertical;min-height:4.5em}
+.notes-edit textarea:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+.notes-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.notes-foot .actions{margin-top:0}
+@media (max-width:520px){.notes-edit{grid-column:1}}

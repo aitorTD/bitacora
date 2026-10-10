@@ -1,5 +1,5 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, listCerts, saveCert, deleteCert, exportAll, readBackup, restoreAll, listSeen } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, setDiveNotes, listCerts, saveCert, deleteCert, exportAll, readBackup, restoreAll, listSeen } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives, statOn } from './lib/logbook.js';
 
@@ -95,6 +95,7 @@ function row(d, side, below = ''){
     <div class="row-main">
       <div class="row-title">${esc(d.site?.name || 'Sin sitio')}</div>
       <div class="row-meta">${esc(when(d.start))} · ${fmt(d.maxDepth)} m · ${clock(d.duration)}</div>
+      ${d.notes && side.includes('data-act="notes"') ? `<div class="row-note">${esc(d.notes)}</div>` : ''}
     </div>
     <div class="row-side">${side}</div>${below}
   </li>`;
@@ -109,6 +110,7 @@ const STAT_TITLES = { count: 'número de inmersiones', time: 'tiempo bajo el agu
 // the saved list shows a page at a time, so the cards below never get buried under a long log
 const PAGE = 8;
 let shown = PAGE, query = '', filter = 'all';
+let notesOpen = null; // id of the dive whose notes are being edited
 
 function matches(d){
   if (filter === 'training' && d.type !== 'training') return false;
@@ -127,6 +129,28 @@ function updateKpis(){
   $('kCertsLbl').textContent = planned ? `titulaciones · ${planned} pendiente${planned > 1 ? 's' : ''}` : 'titulaciones';
 }
 
+const NOTES_MAX = 500;
+const notesEditor = d => `<div class="notes-edit">
+    <label class="label" for="notes-${esc(d.id)}">Notas de la inmersión <span>Salen en su ficha de la web, entre comillas.</span></label>
+    <textarea id="notes-${esc(d.id)}" rows="3" maxlength="${NOTES_MAX}" placeholder="Qué viste, cómo estaba el agua, con quién bajaste…">${esc(d.notes || '')}</textarea>
+    <div class="notes-foot"><span class="count notes-count">${(d.notes || '').length} / ${NOTES_MAX}</span>
+      <div class="actions"><button class="btn ghost small" type="button" data-act="notes-cancel">Cancelar</button><button class="btn primary small" type="button" data-act="notes-save">Guardar</button></div></div>
+  </div>`;
+
+async function saveNotes(li){
+  const d = saved.find(x => x.id === li.dataset.id); if (!d) return;
+  const ta = li.querySelector('.notes-edit textarea'), btn = li.querySelector('[data-act="notes-save"]');
+  const notes = ta.value.trim();
+  if (notes === (d.notes || '')){ notesOpen = null; renderSaved(); return; }
+  btn.disabled = true; ta.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await setDiveNotes(d, notes);
+    if (notes) d.notes = notes; else delete d.notes;
+    notesOpen = null; toast(notes ? 'Notas guardadas' : 'Notas borradas');
+  } catch (err){ toast(explain(err), true); }
+  renderSaved();
+}
+
 function renderSaved(){
   updateKpis();
   $('count').textContent = saved.length ? `${saved.length} ${saved.length === 1 ? 'inmersión' : 'inmersiones'}` : '';
@@ -140,9 +164,12 @@ function renderSaved(){
   $('logList').innerHTML = page.map(d => row(d,
     `<div class="seg" role="group" aria-label="Tipo de inmersión"><button type="button" data-type="recreational" aria-pressed="${d.type !== 'training'}">Recreativa</button><button type="button" data-type="training" aria-pressed="${d.type === 'training'}">Entreno</button></div>` +
     sw('web', !d.hidden, 'Web', 'Mostrar esta inmersión en la web') +
+    `<button class="btn small" type="button" data-act="notes" aria-expanded="${notesOpen === d.id}">${d.notes ? 'Editar notas' : 'Añadir notas'}</button>` +
     '<button class="btn danger small" type="button" data-act="ask">Borrar</button>',
     `<div class="row-stats" role="group" aria-label="Estadísticas en las que cuenta">${STAT_LABELS.map(([k, l]) =>
-      `<button class="pill" type="button" aria-pressed="${statOn(d, k)}" data-stat="${k}" title="Contar en ${STAT_TITLES[k]}">${l}</button>`).join('')}</div>`)).join('');
+      `<button class="pill" type="button" aria-pressed="${statOn(d, k)}" data-stat="${k}" title="Contar en ${STAT_TITLES[k]}">${l}</button>`).join('')}</div>` +
+    (notesOpen === d.id ? notesEditor(d) : ''))).join('');
+  if (notesOpen){ const ta = $('logList').querySelector('.notes-edit textarea'); if (ta && document.activeElement !== ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
 }
 
 $('logMoreBtn').addEventListener('click', () => { shown += PAGE; renderSaved(); });
@@ -191,6 +218,11 @@ $('logList').addEventListener('click', async e => {
     btn.disabled = false;
     return;
   }
+  if (btn.dataset.act === 'notes'){
+    notesOpen = notesOpen === id ? null : id; renderSaved(); return;
+  }
+  if (btn.dataset.act === 'notes-cancel'){ notesOpen = null; renderSaved(); return; }
+  if (btn.dataset.act === 'notes-save'){ saveNotes(li); return; }
   if (btn.dataset.act === 'ask'){
     side.innerHTML = '<span class="confirm">¿Borrar?</span><button class="btn danger small" type="button" data-act="yes">Sí, borrar</button><button class="btn small" type="button" data-act="no">No</button>';
   } else if (btn.dataset.act === 'no'){
@@ -200,6 +232,17 @@ $('logList').addEventListener('click', async e => {
     try { await deleteDive(id); toast('Inmersión borrada'); await refresh(); }
     catch (err){ toast(explain(err), true); renderSaved(); }
   }
+});
+
+// notes editor: live counter, ⌘/Ctrl+Enter saves, Esc cancels
+$('logList').addEventListener('input', e => {
+  if (!e.target.matches('.notes-edit textarea')) return;
+  e.target.closest('.notes-edit').querySelector('.notes-count').textContent = `${e.target.value.length} / ${NOTES_MAX}`;
+});
+$('logList').addEventListener('keydown', e => {
+  if (!e.target.matches('.notes-edit textarea')) return;
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); saveNotes(e.target.closest('.row')); }
+  else if (e.key === 'Escape'){ notesOpen = null; renderSaved(); }
 });
 
 /* ---------- certifications ---------- */

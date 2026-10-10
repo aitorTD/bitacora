@@ -42,6 +42,13 @@ export async function setDiveType(dive, type){
   if (error) throw error;
 }
 
+// notes live inside the dive's data, like everything Pro Dive exports; empty clears them
+export async function setDiveNotes(dive, notes){
+  const { hidden, noSac, notes: _old, ...data } = dive;
+  const { error } = await supabase.from('dives').update({ data: notes ? { ...data, notes } : data }).eq('id', dive.id);
+  if (error) throw error;
+}
+
 export async function getSettings(){
   const { data, error } = await supabase.from('settings').select('data').eq('id', 1).maybeSingle();
   if (error) throw error;
