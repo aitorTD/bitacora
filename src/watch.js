@@ -43,17 +43,16 @@ export async function mountWatch(canvas, { reduce = false } = {}){
   const BASE_PITCH = .12; // a touch forward so the face catches the light
   // fit the turn inside the ring: half the height, or the widest the case and band get as they spin
   const size = box.getSize(new THREE.Vector3()), reach = Math.hypot(size.x, size.z) / 2;
-  const fit = Math.max(size.y / 2, reach) * 1.28;
+  const fit = Math.max(size.y / 2, reach) * 1.18;
   camera.position.set(0, 0, fit / Math.tan(THREE.MathUtils.degToRad(12)));
   camera.lookAt(0, 0, 0);
 
   let visible = false, raf = 0, last = 0, angle = reduce ? -.55 : -.5;
   // eased state: spin speed (1 = normal turn), tilt towards the pointer, and their targets
-  const cur = { speed: reduce ? 0 : 1, yaw: 0, pitch: 0, scale: 1 }, goal = { ...cur };
+  const cur = { speed: reduce ? 0 : 1, yaw: 0, pitch: 0 }, goal = { ...cur };
   const draw = () => {
     spin.rotation.y = angle;
     tilt.rotation.set(BASE_PITCH + cur.pitch, cur.yaw, 0);
-    tilt.scale.setScalar(cur.scale);
     renderer.render(scene, camera);
   };
   function resize(){
@@ -67,7 +66,7 @@ export async function mountWatch(canvas, { reduce = false } = {}){
   resize();
   new ResizeObserver(resize).observe(canvas);
 
-  const settled = () => Math.abs(cur.yaw - goal.yaw) + Math.abs(cur.pitch - goal.pitch) + Math.abs(cur.scale - goal.scale) + Math.abs(cur.speed - goal.speed) < .002;
+  const settled = () => Math.abs(cur.yaw - goal.yaw) + Math.abs(cur.pitch - goal.pitch) + Math.abs(cur.speed - goal.speed) < .002;
   function loop(t){
     raf = 0;
     if (!visible || document.hidden) return;
@@ -90,9 +89,9 @@ export async function mountWatch(canvas, { reduce = false } = {}){
     const r = stage.getBoundingClientRect();
     const nx = Math.max(-1, Math.min(1, (e.clientX - r.left) / r.width * 2 - 1));
     const ny = Math.max(-1, Math.min(1, (e.clientY - r.top) / r.height * 2 - 1));
-    Object.assign(goal, { speed: reduce ? 0 : .12, yaw: nx * .38, pitch: ny * .26, scale: 1.04 });
+    Object.assign(goal, { speed: reduce ? 0 : .12, yaw: nx * .38, pitch: ny * .26 });
     start();
   });
-  stage.addEventListener('pointerleave', () => { Object.assign(goal, { speed: reduce ? 0 : 1, yaw: 0, pitch: 0, scale: 1 }); start(); });
+  stage.addEventListener('pointerleave', () => { Object.assign(goal, { speed: reduce ? 0 : 1, yaw: 0, pitch: 0 }); start(); });
   canvas.classList.add('ready');
 }

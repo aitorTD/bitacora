@@ -29,7 +29,7 @@ p{margin:0}
 .device{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(16px,3vw,26px);align-items:center;margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
 .device{--watch-glow:#ff9d2e}
 :root[data-dive="day"] .device{--watch-glow:#ff7a14}
-.device-stage{position:relative;width:clamp(132px,22vw,176px);aspect-ratio:1;border-radius:50%;
+.device-stage{position:relative;width:clamp(112px,18vw,148px);aspect-ratio:1;border-radius:50%;
   background:radial-gradient(circle closest-side,color-mix(in srgb,var(--watch-glow) 80%,transparent) 0%,color-mix(in srgb,var(--watch-glow) 50%,transparent) 42%,color-mix(in srgb,var(--watch-glow) 18%,transparent) 74%,transparent 98%)}
 .device-stage::before{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--amber) 85%,transparent);animation:bezel 90s linear infinite}
 @keyframes bezel{to{transform:rotate(360deg)}}
@@ -41,7 +41,7 @@ p{margin:0}
 .device-app{margin-top:9px;font-size:.88rem;line-height:1.45}
 .device-app a{color:var(--ink);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--amber) 70%,transparent);text-decoration-thickness:1px;text-underline-offset:3px;transition:text-decoration-color .15s}
 .device-app strong{font-weight:600}
-.device-app .nw{white-space:nowrap}
+.device-app a{white-space:nowrap}
 .device-app svg{display:inline-block;width:11px;height:11px;margin-left:4px;vertical-align:baseline;fill:none;stroke:var(--amber);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
 .device-app a:hover{text-decoration-color:var(--amber)}
 .device-app a:hover svg{transform:translate(2px,-2px)}
@@ -68,7 +68,7 @@ p{margin:0}
 .album-cta:hover .album-cta-arrow{transform:translateX(4px)}
 @media (max-width:520px){
   .device{gap:14px}
-  .device-stage{width:116px}
+  .device-stage{width:104px}
   .device-line{font-size:.85rem}
   .album-cta{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ico title count" "ico sub sub" "bar bar bar";gap:2px 12px;padding:14px}
   .album-cta-main{display:contents}
