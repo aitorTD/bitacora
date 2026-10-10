@@ -27,6 +27,15 @@ export async function setDiveFlags(id, { hidden, noSac }){
   if (error) throw error;
 }
 
+// statsOff: the statistics this dive is left out of; kept inside the dive's data
+export async function setDiveStats(dive, statsOff, clearNoSac = false){
+  const { hidden, noSac, ...data } = dive;
+  const patch = { data: { ...data, statsOff } };
+  if (clearNoSac) patch.no_sac = false;
+  const { error } = await supabase.from('dives').update(patch).eq('id', dive.id);
+  if (error) throw error;
+}
+
 export async function getSettings(){
   const { data, error } = await supabase.from('settings').select('data').eq('id', 1).maybeSingle();
   if (error) throw error;

@@ -1,6 +1,6 @@
 import './styles.css';
 import localDives from './data/dives.json';
-import { summarize, sac } from './lib/logbook.js';
+import { summarize, sac, statOn } from './lib/logbook.js';
 
 var MAXD = 40;
 var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -25,16 +25,55 @@ const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: t
 async function loadLogbook(){
   if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, settings: DEFAULTS };
   try {
-    const { listDives, getSettings } = await import('./lib/supabase.js');
-    const [dives, settings] = await Promise.all([listDives(), getSettings().catch(() => null)]);
-    return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, settings: mergeSettings(settings) };
+    const { listDives } = await import('./lib/supabase.js');
+    const dives = await listDives();
+    return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, settings: DEFAULTS };
   } catch (err){
     console.warn('No se pudieron leer las inmersiones de Supabase; uso la copia local.', err);
     return { dives: localDives, settings: DEFAULTS };
   }
 }
-function mergeSettings(s){ return { stats: { ...DEFAULTS.stats, ...(s && s.stats) }, showDives: s && s.showDives === false ? false : true }; }
 loadLogbook().then(({ dives, settings }) => renderLogbook(dives, settings));
+
+/* ---------- Small graphics for each statistic on a dive card (40×40, theme colours) ---------- */
+function clamp01(v){ return Math.max(0, Math.min(1, v || 0)); }
+function icoSvg(inner, title){ return '<svg class="dstat-g" viewBox="0 0 40 40" aria-hidden="true">' + inner + '</svg>'; }
+// depth reached on a 0–40 m column
+function icoDepth(f){
+  f = clamp01(f); var y = 5 + 30 * f;
+  return icoSvg('<line x1="20" y1="5" x2="20" y2="35" class="g-track"/><line x1="20" y1="5" x2="20" y2="' + y.toFixed(1) + '" class="g-fill"/>' +
+    '<line x1="14" y1="5" x2="26" y2="5" class="g-track"/><path d="M15 ' + (y - 3).toFixed(1) + 'L20 ' + (y + 2).toFixed(1) + 'L25 ' + (y - 3).toFixed(1) + '" class="g-mark"/>');
+}
+// minutes on a one-hour dial
+function icoRing(f){
+  f = clamp01(f); var a = f * Math.PI * 2 - Math.PI / 2, x = 20 + 14 * Math.cos(a), y = 20 + 14 * Math.sin(a);
+  var arc = f >= .999 ? '<circle cx="20" cy="20" r="14" class="g-fill"/>' :
+    '<path d="M20 6A14 14 0 ' + (f > .5 ? 1 : 0) + ' 1 ' + x.toFixed(2) + ' ' + y.toFixed(2) + '" class="g-fill"/>';
+  return icoSvg('<circle cx="20" cy="20" r="14" class="g-track"/>' + arc + '<circle cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) + '" r="2.4" class="g-dot"/>');
+}
+// average level inside the water column, surface on top, deepest point at the bottom
+function icoLevel(f){
+  f = clamp01(f); var y = 7 + 26 * f;
+  return icoSvg('<path d="M7 7q3.25-2.5 6.5 0t6.5 0t6.5 0t6.5 0" class="g-track"/><line x1="7" y1="33" x2="33" y2="33" class="g-track"/>' +
+    '<line x1="7" y1="' + y.toFixed(1) + '" x2="33" y2="' + y.toFixed(1) + '" class="g-fill g-dash"/><circle cx="20" cy="' + y.toFixed(1) + '" r="2.4" class="g-dot"/>');
+}
+// thermometer filled from 5 to 30 °C
+function icoThermo(f){
+  f = clamp01(f); var top = 27 - 20 * f;
+  return icoSvg('<line x1="20" y1="6" x2="20" y2="27" class="g-track g-thick"/><line x1="20" y1="' + top.toFixed(1) + '" x2="20" y2="29" class="g-fill g-thick"/>' +
+    '<circle cx="20" cy="31" r="4.5" class="g-bulb"/>');
+}
+// tank, filled with what was left at the end
+function icoTank(f){
+  f = clamp01(f); var h = 24 * f;
+  return icoSvg('<rect x="13" y="10" width="14" height="26" rx="5" class="g-track"/><rect x="15.5" y="' + (34 - h).toFixed(1) + '" width="9" height="' + h.toFixed(1) + '" rx="2.5" class="g-solid"/>' +
+    '<path d="M17 10V6h6v4M23 7h3" class="g-track"/>');
+}
+// rising bubbles for air consumption
+function icoBubbles(){
+  return icoSvg('<circle cx="15" cy="29" r="5" class="g-track"/><circle cx="24" cy="18" r="3.6" class="g-fill"/><circle cx="17" cy="9" r="2.4" class="g-track"/>' +
+    '<circle cx="26" cy="8" r="1.4" class="g-dot"/>');
+}
 
 function removeSection(headingId){
   var h = document.getElementById(headingId), sec = h && h.closest('section');
@@ -48,22 +87,22 @@ function renderLogbook(dives, settings){
   var sum = summarize(dives);
   var statsEl = document.getElementById('stats');
   if (sum){
-    var tt = hoursMin(sum.totalTime);
+    var tt = sum.totalTime != null ? hoursMin(sum.totalTime) : ['', ''];
     var tiles = [
-      ['count', String(sum.count), '', sum.count === 1 ? 'inmersión registrada' : 'inmersiones registradas'],
-      ['time', tt[0], tt[1], 'bajo el agua'],
-      ['maxDepth', fmt(sum.maxDepth), 'm', 'profundidad máxima'],
-      ['avgDepth', fmt(sum.avgDepth), 'm', 'profundidad media'],
-      ['minTemp', sum.minTemp != null ? fmt(sum.minTemp) : '–', '°C', 'agua más fría'],
-      ['sac', sum.sac != null ? fmt(sum.sac) : '–', 'L/min', 'consumo de aire en superficie']
-    ].filter(function(t){ return show[t[0]] && !(t[0] === 'sac' && sum.sac == null); }).map(function(t){ return t.slice(1); });
+      ['count', sum.count, String(sum.count), '', sum.count === 1 ? 'inmersión registrada' : 'inmersiones registradas'],
+      ['time', sum.totalTime, tt[0], tt[1], 'bajo el agua'],
+      ['maxDepth', sum.maxDepth, sum.maxDepth != null ? fmt(sum.maxDepth) : '', 'm', 'profundidad máxima'],
+      ['avgDepth', sum.avgDepth, sum.avgDepth != null ? fmt(sum.avgDepth) : '', 'm', 'profundidad media'],
+      ['minTemp', sum.minTemp, sum.minTemp != null ? fmt(sum.minTemp) : '', '°C', 'agua más fría'],
+      ['sac', sum.sac, sum.sac != null ? fmt(sum.sac) : '', 'L/min', 'consumo de aire en superficie']
+    ].filter(function(t){ return show[t[0]] && t[1] != null && t[1] !== 0; }).map(function(t){ return t.slice(2); });
     statsEl.innerHTML = tiles.map(function(s){
       return '<div class="stat"><b>' + s[0] + (s[1] ? '<small>' + s[1] + '</small>' : '') + '</b><span>' + s[2] + '</span></div>';
     }).join('');
     var rec = [
-      ['maxDepth', 'Inmersión más profunda', sum.deepest, fmt(sum.deepest.maxDepth), 'm'],
-      ['time', 'Inmersión más larga', sum.longest, String(Math.round(sum.longest.duration / 60)), 'min'],
-      ['minTemp', 'Agua más fría', sum.coldest, sum.coldest && sum.coldest.minTemp != null ? fmt(sum.coldest.minTemp) : '–', '°C']
+      ['maxDepth', 'Inmersión más profunda', sum.deepest, sum.deepest && fmt(sum.deepest.maxDepth), 'm'],
+      ['time', 'Inmersión más larga', sum.longest, sum.longest && String(Math.round(sum.longest.duration / 60)), 'min'],
+      ['minTemp', 'Agua más fría', sum.coldest, sum.coldest && fmt(sum.coldest.minTemp), '°C']
     ].filter(function(r){ return show[r[0]] && r[2]; }).map(function(r){ return r.slice(1); });
     // a section left with nothing to show is taken out of the descent
     if (!tiles.length) removeSection('h-stats');
@@ -121,15 +160,22 @@ function renderLogbook(dives, settings){
       '<rect class="hit" x="' + ml + '" y="0" width="' + (W - ml - mr) + '" height="' + H + '" fill="transparent"/>' +
       '</svg>';
 
-    var c = !dv.noSac && show.sac ? sac(dv) : null;
+    var on = function(key){ return statOn(dv, key) && show[key] !== false; };
+    var c = on('sac') ? sac(dv) : null;
     var place = coords(dv.site);
-    var unit = function(v, u){ return v + '<small>' + u + '</small>'; };
-    var main = [['Máxima', unit(fmt(dv.maxDepth), 'm')], ['Duración', unit(String(Math.round(dv.duration / 60)), 'min')]];
-    if (dv.minTemp != null) main.push(['Agua', unit(fmt(dv.minTemp), '°C')]);
-    var extra = [['Media', fmt(dv.avgDepth) + ' m']];
-    if (dv.minTemp != null && dv.maxTemp != null && dv.maxTemp - dv.minTemp >= 0.5) extra.push(['Agua', fmt(dv.minTemp) + '–' + fmt(dv.maxTemp) + ' °C']);
-    if (dv.tank && dv.tank.start != null){ extra.push(['Botella', fmt(dv.tank.volume, 0) + ' L · ' + gasName(dv.tank.gas)]); extra.push(['Presión', dv.tank.start + ' → ' + dv.tank.end + ' bar']); }
-    if (c != null) extra.push(['Consumo', fmt(c) + ' L/min']);
+    var tilesHtml = [];
+    var tile = function(key, graphic, value, unitTxt, label, sub){
+      tilesHtml.push('<div class="dstat dstat-' + key + '">' + graphic +
+        '<div class="dstat-txt"><span class="dstat-val">' + value + (unitTxt ? '<small>' + unitTxt + '</small>' : '') + '</span>' +
+        '<span class="dstat-lbl">' + label + '</span>' + (sub ? '<span class="dstat-sub">' + sub + '</span>' : '') + '</div></div>');
+    };
+    if (on('maxDepth')) tile('max', icoDepth(dv.maxDepth / 40), fmt(dv.maxDepth), 'm', 'Prof. máxima');
+    if (on('time')) tile('time', icoRing(dv.duration / 3600), String(Math.round(dv.duration / 60)), 'min', 'Duración');
+    if (on('avgDepth') && dv.avgDepth != null) tile('avg', icoLevel(dv.avgDepth / dv.maxDepth), fmt(dv.avgDepth), 'm', 'Prof. media');
+    if (on('minTemp') && dv.minTemp != null) tile('temp', icoThermo((dv.minTemp - 5) / 25), fmt(dv.minTemp), '°C', 'Agua',
+      dv.maxTemp != null && dv.maxTemp - dv.minTemp >= .5 ? 'hasta ' + fmt(dv.maxTemp) + ' °C' : '');
+    if (dv.tank && dv.tank.start != null) tile('tank', icoTank(dv.tank.end / dv.tank.start), dv.tank.start + '→' + dv.tank.end, '', 'Botella · bar', fmt(dv.tank.volume, 0) + ' L · ' + gasName(dv.tank.gas));
+    if (c != null) tile('sac', icoBubbles(), fmt(c), 'L/min', 'Consumo (SAC)');
     var kicker = (dv.number != null ? 'Nº ' + dv.number + ' · ' : '') + dateLabel(dv.start, true);
     var card = document.createElement('article');
     card.className = 'dive';
@@ -137,9 +183,8 @@ function renderLogbook(dives, settings){
       '<header class="dive-head"><p class="dive-kicker"><time datetime="' + esc(dv.start) + '">' + esc(kicker) + '</time></p>' +
       '<h3>' + esc(dv.site.name) + '</h3>' +
       (place ? '<a class="dive-place" href="https://www.openstreetmap.org/?mlat=' + dv.site.lat + '&amp;mlon=' + dv.site.lon + '#map=14/' + dv.site.lat + '/' + dv.site.lon + '" target="_blank" rel="noopener">' + place + '</a>' : '') + '</header>' +
-      '<dl class="dive-main">' + main.map(function(f){ return '<div><dt>' + f[0] + '</dt><dd>' + f[1] + '</dd></div>'; }).join('') + '</dl>' +
       '<div class="profile">' + svg + '<div class="tip" hidden></div></div>' +
-      '<dl class="dive-extra">' + extra.map(function(f){ return '<div><dt>' + f[0] + '</dt><dd>' + f[1] + '</dd></div>'; }).join('') + '</dl>' +
+      (tilesHtml.length ? '<div class="dstats">' + tilesHtml.join('') + '</div>' : '') +
       (dv.notes ? '<p class="dive-notes">' + esc(dv.notes) + '</p>' : '');
     divesEl.appendChild(card);
 

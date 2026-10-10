@@ -26,20 +26,27 @@ export function sac(d){
   return litres / (d.duration / 60) / (d.avgDepth / 10 + 1);
 }
 
+// Statistics a dive can take part in. Each dive can switch any of them off from the admin
+// (e.g. a training dive left out of the air consumption); that data is then also hidden on its card.
+export const STATS = ['count', 'time', 'maxDepth', 'avgDepth', 'minTemp', 'sac'];
+export const statOn = (d, key) => !(d.statsOff || []).includes(key) && !(key === 'sac' && d.noSac);
+
 export function summarize(dives){
   if (!dives.length) return null;
-  const totalTime = dives.reduce((s, d) => s + (d.duration || 0), 0);
-  const weightedAvg = dives.reduce((s, d) => s + (d.avgDepth || 0) * (d.duration || 0), 0) / (totalTime || 1);
-  const by = (key, pick) => dives.filter(d => key(d) != null).reduce((a, b) => (pick(key(b), key(a)) ? b : a), dives.find(d => key(d) != null));
-  const deepest = by(d => d.maxDepth, (b, a) => b > a);
-  const longest = by(d => d.duration, (b, a) => b > a);
-  const coldest = by(d => d.minTemp, (b, a) => b < a);
-  const sacs = dives.filter(d => !d.noSac).map(sac).filter(v => v != null);   // dives marked as training are left out
+  const on = key => dives.filter(d => statOn(d, key));
+  const timed = on('time'), avgs = on('avgDepth').filter(d => d.avgDepth != null && d.duration);
+  const totalTime = timed.reduce((s, d) => s + (d.duration || 0), 0);
+  const avgTime = avgs.reduce((s, d) => s + d.duration, 0);
+  const pickBy = (list, key, better) => list.filter(d => key(d) != null).reduce((a, b) => (a == null || better(key(b), key(a)) ? b : a), null);
+  const deepest = pickBy(on('maxDepth'), d => d.maxDepth, (b, a) => b > a);
+  const longest = pickBy(timed, d => d.duration, (b, a) => b > a);
+  const coldest = pickBy(on('minTemp'), d => d.minTemp, (b, a) => b < a);
+  const sacs = on('sac').map(sac).filter(v => v != null);
   return {
-    count: dives.length,
-    totalTime,
+    count: on('count').length,
+    totalTime: timed.length ? totalTime : null,
     maxDepth: deepest?.maxDepth ?? null,
-    avgDepth: weightedAvg,
+    avgDepth: avgTime ? avgs.reduce((s, d) => s + d.avgDepth * d.duration, 0) / avgTime : null,
     minTemp: coldest?.minTemp ?? null,
     sites: new Set(dives.map(d => d.site?.name)).size,
     sac: sacs.length ? sacs.reduce((s, v) => s + v, 0) / sacs.length : null,

@@ -13,7 +13,7 @@ npm run preview   # sirve dist/ en local
 
 ## Panel privado (/admin)
 
-Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web, sacarlas del cálculo de consumo (SAC) y elegir qué estadísticas se muestran. Las que ya están se saltan, por id o por hora de inicio.
+Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web y elegir en qué estadísticas cuenta cada una (por ejemplo, sacar del SAC una inmersión de prácticas). Lo que se apaga en una inmersión tampoco aparece en su ficha. Las que ya están se saltan, por id o por hora de inicio.
 
 Configuración, una sola vez:
 

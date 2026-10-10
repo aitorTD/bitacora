@@ -13,6 +13,7 @@
   --amber:#ffae2b;
   --on-amber:#1b1203;
   --cyan:#5fd6e4;
+  --on-cyan:#021018;
   --veil-a:rgba(1,8,14,.55);
   --veil-b:rgba(1,8,14,.25);
   --glow:rgba(0,25,40,.55);
@@ -34,6 +35,7 @@
   --amber:#b05a00;
   --on-amber:#fff8ee;
   --cyan:#08788c;
+  --on-cyan:#f4fbfc;
   --veil-a:rgba(220,248,252,.32);
   --veil-b:rgba(220,248,252,.1);
   --glow:rgba(225,250,255,.55);
@@ -43,7 +45,7 @@
 @media (prefers-color-scheme: light){
   :root:not([data-dive]):not([data-theme="dark"]){
     --abyss:#0b4e6c; --ink:#062431; --ink-dim:#3d6470; --line:rgba(6,60,80,.2); --panel:rgba(232,247,249,.82); --card:rgba(247,253,254,.92); --tip:rgba(250,254,255,.96); --hud:rgba(240,250,252,.8);
-    --amber:#b05a00; --on-amber:#fff8ee; --cyan:#08788c; --veil-a:rgba(220,248,252,.32); --veil-b:rgba(220,248,252,.1); --glow:rgba(225,250,255,.55);
+    --amber:#b05a00; --on-amber:#fff8ee; --cyan:#08788c; --on-cyan:#f4fbfc; --veil-a:rgba(220,248,252,.32); --veil-b:rgba(220,248,252,.1); --glow:rgba(225,250,255,.55);
     --w0:#2fa6b6; --w1:#0a4b68; --w2:#04192b; --w3:#01060c; color-scheme:light;
   }
 }

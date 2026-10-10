@@ -1,7 +1,7 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, getSettings, saveSettings } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
-import { mergeDives } from './lib/logbook.js';
+import { mergeDives, statOn } from './lib/logbook.js';
 
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -40,7 +40,7 @@ function show(view){
 async function enterPanel(session){
   $('who').textContent = session.user.email; $('who').hidden = false; $('logout').hidden = false;
   show('panel');
-  await Promise.all([refresh(), loadSettings()]);
+  await refresh();
 }
 function leavePanel(){
   $('who').hidden = true; $('logout').hidden = true;
@@ -55,7 +55,7 @@ async function refresh(){
   renderSaved();
 }
 
-function row(d, side){
+function row(d, side, below = ''){
   const no = d.number != null ? `nº ${d.number}` : '';
   return `<li class="row" data-id="${esc(d.id)}">
     <span class="row-no">${esc(no)}</span>
@@ -63,33 +63,50 @@ function row(d, side){
       <div class="row-title">${esc(d.site?.name || 'Sin sitio')}</div>
       <div class="row-meta">${esc(when(d.start))} · ${fmt(d.maxDepth)} m · ${clock(d.duration)}</div>
     </div>
-    <div class="row-side">${side}</div>
+    <div class="row-side">${side}</div>${below}
   </li>`;
 }
 
 const sw = (act, on, label, title) =>
   `<button class="switch" type="button" role="switch" aria-checked="${on}" data-act="${act}" title="${esc(title)}"><span class="knob" aria-hidden="true"></span><span class="sw-label">${label}</span></button>`;
 
+const STAT_LABELS = [['count', 'Nº'], ['time', 'Tiempo'], ['maxDepth', 'Máx.'], ['avgDepth', 'Media'], ['minTemp', 'Agua'], ['sac', 'SAC']];
+const STAT_TITLES = { count: 'número de inmersiones', time: 'tiempo bajo el agua y la más larga', maxDepth: 'profundidad máxima y la más profunda', avgDepth: 'profundidad media', minTemp: 'agua más fría', sac: 'consumo de aire (SAC)' };
+
 function renderSaved(){
   $('count').textContent = saved.length ? `${saved.length} ${saved.length === 1 ? 'inmersión' : 'inmersiones'}` : '';
   $('logEmpty').hidden = saved.length > 0;
   $('logList').innerHTML = saved.map(d => row(d,
     sw('web', !d.hidden, 'Web', 'Mostrar esta inmersión en la web') +
-    sw('sac', !d.noSac, 'SAC', 'Contar esta inmersión en el consumo de aire') +
-    '<button class="btn danger small" type="button" data-act="ask">Borrar</button>')).join('');
+    '<button class="btn danger small" type="button" data-act="ask">Borrar</button>',
+    `<div class="row-stats" role="group" aria-label="Estadísticas en las que cuenta">${STAT_LABELS.map(([k, l]) =>
+      `<button class="pill" type="button" aria-pressed="${statOn(d, k)}" data-stat="${k}" title="Contar en ${STAT_TITLES[k]}">${l}</button>`).join('')}</div>`)).join('');
 }
 
 $('logList').addEventListener('click', async e => {
   const btn = e.target.closest('button'); if (!btn) return;
   const li = btn.closest('.row'), side = li.querySelector('.row-side'), id = li.dataset.id;
-  if (btn.dataset.act === 'web' || btn.dataset.act === 'sac'){
+  if (btn.dataset.stat){
+    const d = saved.find(x => x.id === id); if (!d) return;
+    const key = btn.dataset.stat, on = btn.getAttribute('aria-pressed') !== 'true';
+    const off = new Set(d.statsOff || []); on ? off.delete(key) : off.add(key);
+    btn.setAttribute('aria-pressed', String(on)); btn.disabled = true;
+    try {
+      await setDiveStats(d, [...off], key === 'sac' && on && d.noSac);
+      d.statsOff = [...off]; if (key === 'sac' && on) d.noSac = false;
+      toast(`${on ? 'Cuenta' : 'Ya no cuenta'} en ${STAT_TITLES[key]}`);
+    } catch (err){ btn.setAttribute('aria-pressed', String(!on)); toast(explain(err), true); }
+    btn.disabled = false;
+    return;
+  }
+  if (btn.dataset.act === 'web'){
     const d = saved.find(x => x.id === id); if (!d) return;
     const on = btn.getAttribute('aria-checked') !== 'true';
-    const patch = btn.dataset.act === 'web' ? { hidden: !on } : { noSac: !on };
+    const patch = { hidden: !on };
     btn.setAttribute('aria-checked', String(on)); btn.disabled = true;
     try {
       await setDiveFlags(id, patch); Object.assign(d, patch);
-      toast(btn.dataset.act === 'web' ? (on ? 'Se muestra en la web' : 'Oculta en la web') : (on ? 'Cuenta en el consumo de aire' : 'Fuera del consumo de aire'));
+      toast(on ? 'Se muestra en la web' : 'Oculta en la web');
     } catch (err){ btn.setAttribute('aria-checked', String(!on)); toast(explain(err), true); }
     btn.disabled = false;
     return;
@@ -103,43 +120,6 @@ $('logList').addEventListener('click', async e => {
     try { await deleteDive(id); toast('Inmersión borrada'); await refresh(); }
     catch (err){ toast(explain(err), true); renderSaved(); }
   }
-});
-
-/* ---------- what the web shows ---------- */
-const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: true, minTemp: true, sac: true }, showDives: true };
-const OPTIONS = [
-  ['count', 'Número de inmersiones'],
-  ['time', 'Tiempo bajo el agua', 'También la inmersión más larga en Récords'],
-  ['maxDepth', 'Profundidad máxima', 'También la inmersión más profunda en Récords'],
-  ['avgDepth', 'Profundidad media'],
-  ['minTemp', 'Agua más fría', 'También en Récords'],
-  ['sac', 'Consumo de aire (SAC)', 'La media y el dato de cada ficha'],
-  ['showDives', 'Fichas de inmersión', 'La sección con el perfil de cada inmersión'],
-];
-let settings = structuredClone(DEFAULTS);
-
-async function loadSettings(){
-  try {
-    const s = await getSettings();
-    settings = { stats: { ...DEFAULTS.stats, ...(s && s.stats) }, showDives: !(s && s.showDives === false) };
-  } catch (err){ toast(explain(err), true); }
-  renderSettings();
-}
-const isOn = key => key === 'showDives' ? settings.showDives : settings.stats[key];
-function renderSettings(){
-  $('switches').innerHTML = OPTIONS.map(([key, label, hint]) => `<li class="opt">
-    <div class="opt-text"><span class="opt-label" id="opt-${key}">${label}</span>${hint ? `<span class="opt-hint">${hint}</span>` : ''}</div>
-    <button class="switch big" type="button" role="switch" aria-checked="${isOn(key)}" aria-labelledby="opt-${key}" data-key="${key}"><span class="knob" aria-hidden="true"></span></button>
-  </li>`).join('');
-}
-$('switches').addEventListener('click', async e => {
-  const btn = e.target.closest('.switch'); if (!btn) return;
-  const key = btn.dataset.key, on = !isOn(key), before = structuredClone(settings);
-  if (key === 'showDives') settings.showDives = on; else settings.stats[key] = on;
-  btn.setAttribute('aria-checked', String(on)); btn.disabled = true;
-  try { await saveSettings(settings); toast('Guardado. Se verá al recargar la web.'); }
-  catch (err){ settings = before; renderSettings(); toast(explain(err), true); }
-  btn.disabled = false;
 });
 
 /* ---------- import ---------- */
