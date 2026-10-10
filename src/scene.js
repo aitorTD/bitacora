@@ -6,6 +6,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadDiver, updateDiver, spring } from './diver.js';
+import { createFauna } from './fauna.js';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/diver.glb`;
 // development only: ?close=x,y,z puts the camera next to the diver to check the rig
@@ -17,12 +18,16 @@ const CLOSE = import.meta.env.DEV && new URLSearchParams(location.search).get('c
 export function initScene(dive){
   const canvas = document.getElementById('scene');
   let renderer;
-  try { renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'}); }
+  // no antialias on the canvas itself: the scene renders into the composer's multisampled target
+  try { renderer = new THREE.WebGLRenderer({canvas, antialias:false, powerPreference:'high-performance'}); }
   catch (e) { return; }
 
   const small = innerWidth < 720;
   const lowPower = small || (navigator.hardwareConcurrency || 8) <= 4;
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, small ? 1.5 : 2));
+  // resolution adapts to the device: it starts sharp and steps down if frames come in slow
+  const PR_MAX = Math.min(devicePixelRatio || 1, small ? 1.5 : 2), PR_MIN = Math.min(PR_MAX, small ? .8 : 1);
+  let pr = PR_MAX;
+  renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -184,6 +189,29 @@ export function initScene(dive){
     };
   }
 
+  // Seen from high above, the dark seabed rocks stood out through the fog as floating blobs; real
+  // water hides the bottom until you get near it, so these materials also fade with the height
+  // of the camera above them.
+  const murky = m => (addMurk(m), m);
+  function addMurk(mat){
+    const before = mat.onBeforeCompile;
+    mat.onBeforeCompile = (sh, r) => {
+      if (before) before(sh, r);
+      if (!sh.vertexShader.includes('vWPos')){
+        sh.vertexShader = 'varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+          vec4 mw = vec4(transformed, 1.);
+          #ifdef USE_INSTANCING
+            mw = instanceMatrix*mw;
+          #endif
+          vWPos = (modelMatrix*mw).xyz;`);
+        sh.fragmentShader = 'varying vec3 vWPos;\n' + sh.fragmentShader;
+      }
+      sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, smoothstep(5., 12., cameraPosition.y - vWPos.y));`);
+    };
+    mat.customProgramCacheKey = () => 'murk' + (before ? '-caustics' : '');
+  }
+
   /* ---------- Diver ---------- */
   // rig: root (position, heading) > pitch > roll > model (lying along -z, back up)
   const diverRoot = new THREE.Group(), diverPitch = new THREE.Group(), diverRoll = new THREE.Group(), diverModel = new THREE.Group();
@@ -247,62 +275,6 @@ export function initScene(dive){
   let bubTimer = 0, bubIdx = 0;
   const dummy = new THREE.Object3D();
 
-  /* ---------- Fish ---------- */
-  function fishGeometry(fat){
-    const body = new THREE.SphereGeometry(1, 14, 10); body.scale(1, .36 * fat, .15 * fat);
-    const sh = new THREE.Shape(); sh.moveTo(-.85, 0); sh.lineTo(-1.6, .42); sh.quadraticCurveTo(-1.4, 0, -1.6, -.42); sh.lineTo(-.85, 0);
-    const dor = new THREE.Shape(); dor.moveTo(-.4, .3 * fat); dor.lineTo(.15, .3 * fat); dor.lineTo(-.25, .58 * fat); dor.lineTo(-.4, .3 * fat);
-    const g = mergeGeometries([body.toNonIndexed(), new THREE.ShapeGeometry(sh).toNonIndexed(), new THREE.ShapeGeometry(dor).toNonIndexed()]);
-    g.rotateY(-Math.PI / 2);
-    g.computeVertexNormals();
-    return g;
-  }
-  const fishGeo = fishGeometry(1), fatFishGeo = fishGeometry(1.35);
-  const schools = [];
-  function makeSchool(o){
-    const mat = new THREE.MeshStandardMaterial({color:'#ffffff', roughness:.35, metalness:.45, side:THREE.DoubleSide});
-    const mesh = new THREE.InstancedMesh(o.geo || fishGeo, mat, o.count);
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    const base = new THREE.Color(o.color), c = new THREE.Color();
-    const fish = [];
-    for (let i = 0; i < o.count; i++){
-      const u = rand() * Math.PI * 2, v = Math.acos(2 * rand() - 1), r = Math.cbrt(rand());
-      fish.push({ox:Math.sin(v) * Math.cos(u) * r * o.rx, oy:Math.cos(v) * r * o.ry, oz:Math.sin(v) * Math.sin(u) * r * o.rz, ph:rand() * 6.28, sc:o.size * rr(.8, 1.2)});
-      c.copy(base).offsetHSL(rr(-.02, .02), rr(-.08, .05), rr(-.08, .08)); mesh.setColorAt(i, c);
-    }
-    mesh.frustumCulled = false;
-    scene.add(mesh);
-    schools.push({...o, mesh, fish});
-  }
-  const sc = lowPower ? .55 : 1;
-  makeSchool({count:Math.round(150 * sc), color:'#b9d6e2', size:.085, y:-5.5, x:-1, z:-7, ax:5, ay:1.4, az:3, rx:2.8, ry:1, rz:2, w:.16, ph:0});
-  makeSchool({count:Math.round(70 * sc), color:'#d9c98a', size:.11, y:-12, x:1.5, z:-9, ax:4.5, ay:1.2, az:2.5, rx:2.4, ry:.9, rz:1.8, w:.12, ph:2});
-  makeSchool({count:Math.round(46 * sc), color:'#8fa4b0', size:.16, y:-20.5, x:-1.5, z:-10, ax:4.5, ay:1, az:3, rx:3.2, ry:.7, rz:1.4, w:.08, ph:4, slim:true});
-  const hv = new THREE.Vector3();
-  function updateSchool(s, t){
-    const tt = t * s.w + s.ph;
-    const cx = s.x + Math.sin(tt) * s.ax, cy = s.y + Math.sin(tt * .7) * s.ay, cz = s.z + Math.sin(tt * 2) * s.az * .5;
-    const t2 = tt + .02;
-    hv.set(s.x + Math.sin(t2) * s.ax - cx, s.y + Math.sin(t2 * .7) * s.ay - cy, s.z + Math.sin(t2 * 2) * s.az * .5 - cz).normalize();
-    for (let i = 0; i < s.fish.length; i++){
-      const f = s.fish[i];
-      const wob = t * .9 + f.ph;
-      dummy.position.set(cx + f.ox + Math.sin(wob) * .25, cy + f.oy + Math.sin(wob * 1.4) * .12, cz + f.oz + Math.cos(wob) * .25);
-      dummy.lookAt(dummy.position.x + hv.x + Math.cos(wob) * .12, dummy.position.y + hv.y * .5, dummy.position.z + hv.z - Math.sin(wob) * .12);
-      dummy.rotateY(Math.sin(t * 9 + f.ph) * .14);
-      const k = s.slim ? .7 : 1;
-      dummy.scale.set(f.sc * k, f.sc * k, f.sc * (s.slim ? 1.5 : 1));
-      dummy.updateMatrix();
-      s.mesh.setMatrixAt(i, dummy.matrix);
-    }
-    s.mesh.instanceMatrix.needsUpdate = true;
-  }
-  const grouperMat = new THREE.MeshStandardMaterial({color:'#6b5238', roughness:.6, metalness:.15, side:THREE.DoubleSide});
-  const groupers = [0, 1, 2].map(() => {
-    const m = new THREE.Mesh(fatFishGeo, grouperMat); m.scale.setScalar(rr(.32, .42)); scene.add(m);
-    return {m, cx:rr(-4, 4), cy:rr(-19, -27), cz:rr(-6, -12), r:rr(2, 3.5), w:rr(.06, .1), ph:rand() * 6};
-  });
-
   // eagle ray
   const rayMat = new THREE.MeshStandardMaterial({color:'#2d3b45', roughness:.55, metalness:.15, side:THREE.DoubleSide});
   const ray = new THREE.Group();
@@ -345,7 +317,7 @@ export function initScene(dive){
   // jellyfish
   const jellies = [];
   const jellyCols = ['#7b5cff', '#3fe0e8', '#c46bff', '#46a9ff'];
-  for (let i = 0; i < (lowPower ? 9 : 15); i++){
+  for (let i = 0; i < (lowPower ? 3 : 5); i++){
     const col = new THREE.Color(jellyCols[i % jellyCols.length]);
     const g = new THREE.Group();
     const bellMat = new THREE.MeshStandardMaterial({color:col.clone().multiplyScalar(.25), emissive:col, emissiveIntensity:.65, transparent:true, opacity:.5, roughness:.3, side:THREE.DoubleSide, depthWrite:false});
@@ -359,16 +331,11 @@ export function initScene(dive){
       tents.push({line, a:k / 8 * Math.PI * 2, len:rr(1.2, 2.2)});
     }
     const s = rr(.55, 1.15); g.scale.setScalar(s);
-    g.position.set(rr(-6.5, 5.5), rr(-24, -41), rr(-2.5, -15));
+    g.position.set(rr(-5, 5), -27 - i * 3.2 + rr(-1, 1), rr(-4, -14));
     scene.add(g);
     const halo = new THREE.Mesh(glowGeo, glowMaterial(col, 1.1)); halo.scale.set(3 * s, 3 * s, 1); halo.renderOrder = 3; scene.add(halo); billboards.push(halo);
     jellies.push({g, bell, tents, halo, col, ph:rand() * 6, base:g.position.y, sx:g.position.x});
   }
-  // a few jellies cast coloured light on the reef
-  const jellyLights = [0, 5, 10].filter(i => jellies[i]).map(i => {
-    const l = new THREE.PointLight(jellies[i].col, 0, 10, 1.4); scene.add(l); return {l, j:jellies[i]};
-  });
-
   /* ---------- Plankton & marine snow ---------- */
   function particles(n, color, color2, size, area){
     const pos = new Float32Array(n * 3), ph = new Float32Array(n);
@@ -458,8 +425,9 @@ export function initScene(dive){
     const shine = new THREE.MeshBasicMaterial({ color: '#ffffff' });
     const blushM = new THREE.MeshBasicMaterial({ color: '#ff8fa6', transparent: true, opacity: .75 });
     const face = new THREE.Group(); face.position.y = .5; mantle.add(face);
+    const eyes = [];
     for (const sx of [-1, 1]){
-      const eye = new THREE.Group(); eye.position.set(sx * .36, .12, .78); face.add(eye);
+      const eye = new THREE.Group(); eye.position.set(sx * .36, .12, .78); face.add(eye); eyes.push(eye);
       eye.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.27, 1), white));
       const pupil = new THREE.Mesh(new THREE.IcosahedronGeometry(.17, 1), black); pupil.position.set(sx * .015, -.02, .15); eye.add(pupil);
       const glint = new THREE.Mesh(new THREE.IcosahedronGeometry(.055, 0), shine); glint.position.set(-.06, .07, .3); eye.add(glint);
@@ -488,11 +456,12 @@ export function initScene(dive){
       tentacles.push({ mesh, out, axis: new THREE.Vector3().crossVectors(out, new THREE.Vector3(0, -1, 0)).normalize(), root: out.clone().multiplyScalar(.42).add(new THREE.Vector3(0, .05, 0)), ph: rand() * 6.28 });
     }
     const dir = new THREE.Vector3(), c = new THREE.Vector3(), nrm = new THREE.Vector3(), q = new THREE.Quaternion(), tmp = new THREE.Vector3();
-    function shapeTentacles(t, pulse){
+    function shapeTentacles(t, pulse, speed = 0){
       for (const T of tentacles){
         const p = T.mesh.geometry.attributes.position;
         // relaxed: arms spread out and the tips curl up like little springs; on the pulse they draw together
-        dir.copy(T.out).multiplyScalar(mix(1.05, .3, pulse)).add(tmp.set(0, -.75, 0)).normalize();
+        const tuck = Math.max(pulse, speed * .7);
+        dir.copy(T.out).multiplyScalar(mix(1.05, .28, tuck)).add(tmp.set(0, -.75, 0)).normalize();
         c.copy(T.root);
         for (let k = 0; k < N; k++){
           const f = k / (N - 1), r = .25 * Math.pow(1 - f, .8) + .03;
@@ -502,7 +471,7 @@ export function initScene(dive){
             tmp.copy(nrm).multiplyScalar(Math.cos(th) * r).addScaledVector(T.axis, Math.sin(th) * r).add(c);
             p.setXYZ(k * RAD + j, tmp.x, tmp.y, tmp.z);
           }
-          const ang = mix(.62, .18, pulse) * Math.pow(f, 1.6) + Math.sin(t * 1.4 - f * 3.5 + T.ph) * .12 * f;
+          const ang = mix(.62, .14, tuck) * Math.pow(f, 1.6) + Math.sin(t * (1.4 + speed * 2) - f * 3.5 + T.ph) * mix(.16, .07, tuck) * f;
           q.setFromAxisAngle(T.axis, -ang); dir.applyQuaternion(q).normalize();
           c.addScaledVector(dir, L / (N - 1));
         }
@@ -512,7 +481,12 @@ export function initScene(dive){
     }
     group.scale.setScalar(small ? .2 : .23);
     scene.add(group);
-    return { group, mantle, shapeTentacles, center: new THREE.Vector3(small ? -1.9 : -4.6, -2.7, small ? -2.2 : -1.2), heading: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3() };
+    // it roams the open water near the surface, in the part of the frame left free by the text
+    const zone = small ? { x: [-2.2, 1.4], y: [-1.6, -7], z: [-3.2, .4] } : { x: [-5.5, 2.4], y: [-1.5, -8], z: [-4.5, 1] };
+    const pickSpot = out => out.set(rr(zone.x[0], zone.x[1]), rr(zone.y[1], zone.y[0]), rr(zone.z[0], zone.z[1]));
+    const pos = pickSpot(new THREE.Vector3()), target = pickSpot(new THREE.Vector3());
+    return { group, mantle, eyes, shapeTentacles, zone, pickSpot, pos, target, vel: new THREE.Vector3(), heading: new THREE.Vector3(1, .3, 0).normalize(),
+      jet: -1, nextJet: 1.5, since: 0, blink: 3, quat: new THREE.Quaternion(), speed: 0 };
   })();
 
   /* ---------- Sand floor ---------- */
@@ -527,6 +501,7 @@ export function initScene(dive){
     return out.lerp(rockB, smoothstep(8, 12, Math.abs(x)) * .7);
   }
   const sandMat = new THREE.MeshStandardMaterial({color:'#ffffff', vertexColors:true, roughness:1, metalness:0});
+  addMurk(sandMat);
   {
     const segX = lowPower ? 100 : 150, segZ = lowPower ? 230 : 330;
     const g = new THREE.PlaneGeometry(36, 84, segX, segZ); g.rotateX(-Math.PI / 2); g.translate(0, 0, -26);
@@ -541,6 +516,8 @@ export function initScene(dive){
     g.computeVertexNormals();
     scene.add(new THREE.Mesh(g, sandMat));
   }
+
+  const fauna = createFauna({ scene, rand, rr, floorY, smooth, lowPower, small });
 
   /* ---------- Boulders and a pinnacle, resting on the sand ---------- */
   function rockGeometry(k){
@@ -558,7 +535,7 @@ export function initScene(dive){
     g.computeVertexNormals(); return g;
   }
   const rockMat = new THREE.MeshStandardMaterial({color:'#ffffff', vertexColors:true, roughness:.95, metalness:0, flatShading:true});
-  addCaustics(rockMat);
+  addCaustics(rockMat); addMurk(rockMat);
   seed = 2024;
   const boulders = [];
   // the easter egg spot: open sand in the frame at the bottom of the page, where the light lands
@@ -650,6 +627,7 @@ export function initScene(dive){
     const g = mergeGeometries(parts); g.computeVertexNormals(); return g;
   }
   const gorgMat = new THREE.MeshStandardMaterial({color:'#ffffff', vertexColors:true, roughness:.75, metalness:0, emissive:'#250306', emissiveIntensity:.35});
+  addMurk(gorgMat);
   const gorgGeos = [gorgonianGeometry(1), gorgonianGeometry(2), gorgonianGeometry(3)];
   seed = 777;
   const placeGorg = (x, y, z, rz, ry, s) => { const m = new THREE.Mesh(gorgGeos[(rand() * 3) | 0], gorgMat); m.position.set(x, y, z); m.rotation.set(0, ry, rz, 'YXZ'); m.scale.setScalar(s); scene.add(m); };
@@ -670,7 +648,7 @@ export function initScene(dive){
       const c = new THREE.ConeGeometry(.008, .13, 4); c.translate(0, .065 + .06, 0); q.setFromUnitVectors(up, dir); mtx.makeRotationFromQuaternion(q); c.applyMatrix4(mtx); parts.push(c.toNonIndexed());
     }
     const urchinGeo = mergeGeometries(parts); urchinGeo.computeVertexNormals();
-    const urch = new THREE.InstancedMesh(urchinGeo, new THREE.MeshStandardMaterial({color:'#2b1631', roughness:.6, metalness:.1}), 46);
+    const urch = new THREE.InstancedMesh(urchinGeo, murky(new THREE.MeshStandardMaterial({color:'#2b1631', roughness:.6, metalness:.1})), 46);
     seed = 99;
     for (let i = 0; i < 46; i++){
       let x = rr(-8, 8), z = rr(2, -30); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.9) x += 3.8; const y = floorY(x, z) + .04;
@@ -682,7 +660,7 @@ export function initScene(dive){
     for (let i = 0; i <= 10; i++){ const a = i / 10 * Math.PI * 2 + Math.PI / 2, r = i % 2 ? .045 : .17; i ? star.lineTo(Math.cos(a) * r, Math.sin(a) * r) : star.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
     const starGeo = new THREE.ExtrudeGeometry(star, {depth:.02, bevelEnabled:true, bevelThickness:.014, bevelSize:.016, bevelSegments:2, curveSegments:4});
     starGeo.rotateX(-Math.PI / 2);
-    const stars = new THREE.InstancedMesh(starGeo, new THREE.MeshStandardMaterial({color:'#c2391f', roughness:.85, metalness:0}), 16);
+    const stars = new THREE.InstancedMesh(starGeo, murky(new THREE.MeshStandardMaterial({color:'#c2391f', roughness:.85, metalness:0})), 16);
     for (let i = 0; i < 16; i++){
       let x = rr(-7.5, 7.5), z = rr(2, -28); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.9) x += 3.8;
       dummy.position.set(x, floorY(x, z) + .01, z); dummy.rotation.set(rr(-.08, .08), rand() * 6.28, rr(-.08, .08)); dummy.scale.setScalar(rr(.8, 1.4)); dummy.updateMatrix(); stars.setMatrixAt(i, dummy.matrix);
@@ -718,9 +696,11 @@ export function initScene(dive){
   }
 
   /* ---------- Post-processing ---------- */
-  const composer = new EffectComposer(renderer);
+  const target = new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, { type: THREE.HalfFloatType, samples: lowPower ? 0 : 4 });
+  const composer = new EffectComposer(renderer, target);
+  composer.setPixelRatio(pr);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / (small ? 2 : 1.5), innerHeight / (small ? 2 : 1.5)), .3, .6, .82);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), .3, .6, .82);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -741,10 +721,23 @@ export function initScene(dive){
   let pointer = {x:0, y:0}, pSmooth = {x:0, y:0};
   if (!small) addEventListener('pointermove', e => { pointer.x = e.clientX / innerWidth - .5; pointer.y = e.clientY / innerHeight - .5; });
 
-  addEventListener('resize', () => {
+  function applySize(){
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight, false); composer.setSize(innerWidth, innerHeight);
-  });
+    renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
+    composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+    snow.uniforms.uPR.value = glow.uniforms.uPR.value = pr;
+  }
+  addEventListener('resize', applySize);
+  // frame-time watchdog: drop the resolution a step when the average frame is slow, and bring it
+  // back after a long run of quick frames
+  const perf = { n: 0, sum: 0, good: 0, warm: 0 };
+  function watchPerf(raw){
+    perf.warm += raw; if (perf.warm < 3 || document.hidden) return;   // ignore start-up and shader compiles
+    perf.sum += raw; if (++perf.n < 90) return;
+    const avg = perf.sum / perf.n; perf.n = perf.sum = 0;
+    if (avg > 1 / 40 && pr > PR_MIN){ pr = Math.max(PR_MIN, pr - .25); perf.good = 0; applySize(); }
+    else if (avg < 1 / 55 && pr < PR_MAX && ++perf.good >= 4){ pr = Math.min(PR_MAX, pr + .25); perf.good = 0; applySize(); }
+  }
 
   const clock = new THREE.Clock();
   let t = 0, firstFrame = true;
@@ -756,8 +749,61 @@ export function initScene(dive){
   let lightAimInit = false;
   const eggAimOffset = new THREE.Vector3(0, 0, -.9);   // centre of the pool just behind the mask
 
+  const oDir = new THREE.Vector3(), oX = new THREE.Vector3(), oY = new THREE.Vector3(), oZ = new THREE.Vector3(), oM = new THREE.Matrix4();
+  const oE = new THREE.Euler(), qUp = new THREE.Quaternion(), qSwim = new THREE.Quaternion(), qGoal = new THREE.Quaternion();
+  function updateOcto(dt){
+    const o = octo, JET = .6;
+    if (o.pos.distanceTo(o.target) < .8){ let k = 0; do o.pickSpot(o.target); while (o.target.distanceTo(o.pos) < 3 && ++k < 8); }
+    // aim: turn the heading toward the target, faster while gliding than mid-jet
+    oDir.copy(o.target).sub(o.pos).normalize();
+    o.heading.lerp(oDir, Math.min(1, dt * (o.jet >= 0 ? .6 : 1.4))).normalize();
+    o.since += dt;
+    if (o.jet < 0 && o.since > o.nextJet){ o.jet = 0; o.since = 0; o.nextJet = rr(1.6, 3.6); }
+    let pulse = 0;
+    if (o.jet >= 0){
+      o.jet += dt;
+      const f = o.jet / JET;
+      pulse = Math.sin(Math.min(1, f) * Math.PI);
+      o.vel.addScaledVector(o.heading, 3.4 * pulse * dt);
+      if (f >= 1) o.jet = -1;
+    } else pulse = 0;
+    o.vel.multiplyScalar(Math.exp(-dt * 1.25));
+    o.vel.y -= .05 * dt;                                          // a slow sink while it glides
+    o.pos.addScaledVector(o.vel, dt);
+    // keep it inside its patch of water
+    o.pos.x = THREE.MathUtils.clamp(o.pos.x, o.zone.x[0] - .5, o.zone.x[1] + .5);
+    o.pos.y = THREE.MathUtils.clamp(o.pos.y, o.zone.y[1] - .5, o.zone.y[0]);
+    o.pos.z = THREE.MathUtils.clamp(o.pos.z, o.zone.z[0] - .5, o.zone.z[1] + .5);
+    const speed = o.vel.length();
+    o.speed += (Math.min(1, speed / .8) - o.speed) * Math.min(1, dt * 4);
+    // orientation: upright and facing the camera at rest, mantle first along the travel when fast
+    oZ.set(camera.position.x - o.pos.x, 0, camera.position.z - o.pos.z).normalize();
+    qUp.setFromRotationMatrix(oM.lookAt(oX.copy(oZ).add(o.pos), o.pos, oY.set(0, 1, 0)));
+    qUp.multiply(qGoal.setFromEuler(oE.set(-.12 + Math.sin(t * .5) * .06, Math.sin(t * .3) * .3, Math.sin(t * .45) * .08)));
+    if (speed > 1e-4){
+      oY.copy(o.vel).normalize();
+      oZ.set(camera.position.x - o.pos.x, camera.position.y - o.pos.y, camera.position.z - o.pos.z).normalize();
+      oZ.addScaledVector(oY, -oZ.dot(oY)); if (oZ.lengthSq() < 1e-4) oZ.set(0, 0, 1); oZ.normalize();
+      oX.crossVectors(oY, oZ);
+      qSwim.setFromRotationMatrix(oM.makeBasis(oX, oY, oZ));
+    } else qSwim.copy(qUp);
+    qGoal.copy(qUp).slerp(qSwim, smooth(.12, .7, speed) * .9);
+    o.quat.slerp(qGoal, 1 - Math.exp(-dt * 4));
+    o.group.position.copy(o.pos);
+    o.group.quaternion.copy(o.quat);
+    o.mantle.scale.set(1 - .14 * pulse, 1 + .1 * pulse, 1 - .14 * pulse);
+    // blink now and then
+    o.blink -= dt;
+    const shut = o.blink < 0 && o.blink > -.13;
+    if (o.blink < -.13) o.blink = rr(2.5, 5.5);
+    o.eyes.forEach(e => { e.scale.y = shut ? .12 : 1; });
+    o.shapeTentacles(t, pulse, o.speed);
+  }
+
   function frame(){
-    const dt = Math.min(clock.getDelta(), DT_MAX);
+    const raw = clock.getDelta();
+    watchPerf(raw);
+    const dt = Math.min(raw, DT_MAX);
     const speed = dive.reduce ? 0 : 1;
     t += dt * speed;
     const dRaw = dive.depth;          // negative while still above the water
@@ -810,6 +856,7 @@ export function initScene(dive){
     sun.target.position.copy(camera.position);
     sun.position.copy(camera.position).addScaledVector(isAbove ? lightDir : lightDirW, 30);
 
+    surface.visible = camY > -24;
     surfMat.uniforms.uTime.value = t; surfMat.uniforms.uFade.value = Math.exp(-d / 7); surfMat.uniforms.uFog.value.copy(fogCol); surfMat.uniforms.uNight.value = n;
     causU.uTime.value = t; causU.uCaus.value = 1 - n;
 
@@ -900,24 +947,14 @@ export function initScene(dive){
     bubbles.instanceMatrix.needsUpdate = true;
 
     // fauna near the camera only
-    schools.forEach(s => { const near = Math.abs(s.y - y) < 22; s.mesh.visible = near; if (near) updateSchool(s, t); });
-    // octopus: a soft jet every few seconds, then a slow glide while the arms spread again;
-    // it keeps its face turned toward the viewer
-    if (Math.abs(y + 2.7) < 16){
+    fauna.update(t, dive.reduce ? 0 : dt, camY);
+    // octopus: it swims like a real one, by jets. Between jets it turns toward wherever it wants
+    // to go and glides with its arms spread; on a jet the mantle squeezes, the arms close behind it
+    // and it shoots off head first. When it slows down it turns upright and looks at you again.
+    if (Math.abs(camY - octo.pos.y) < 15){
       octo.group.visible = true;
-      const cyc = (t / 3.8) % 1, pulse = cyc < .22 ? Math.sin(cyc / .22 * Math.PI / 2) : Math.max(0, 1 - (cyc - .22) / .5) ** 2;
-      const a = t * .08, R = small ? .45 : .9;
-      octo.group.position.set(octo.center.x + Math.cos(a) * R, octo.center.y + Math.sin(t * .25) * .25 + pulse * .07, octo.center.z + Math.sin(a) * R * .5);
-      octo.group.rotation.set(-.12 - pulse * .1, Math.sin(t * .3) * .35 - .25, Math.sin(t * .5) * .08);
-      octo.mantle.scale.set(1 - .1 * pulse, 1 + .07 * pulse, 1 - .1 * pulse);
-      octo.shapeTentacles(t, pulse);
+      updateOcto(dive.reduce ? 0 : dt);
     } else octo.group.visible = false;
-    groupers.forEach(g => {
-      const a = t * g.w + g.ph;
-      g.m.position.set(g.cx + Math.cos(a) * g.r, g.cy + Math.sin(a * 1.7) * .4, g.cz + Math.sin(a) * g.r * .6);
-      g.m.lookAt(g.cx + Math.cos(a + .05) * g.r, g.m.position.y, g.cz + Math.sin(a + .05) * g.r * .6);
-      g.m.rotateY(Math.sin(t * 3 + g.ph) * .08);
-    });
     {
       const a = t * .11, R = 5.5;
       ray.position.set(-.5 + Math.cos(a) * R, -15.5 + Math.sin(t * .4) * .8, -9 + Math.sin(a) * R * .6);
@@ -946,7 +983,6 @@ export function initScene(dive){
         tn.line.geometry.attributes.position.needsUpdate = true;
       });
     });
-    jellyLights.forEach(({l, j}) => { l.position.copy(j.g.position); l.intensity = j.g.visible ? 4 * Math.max(bio, .3 * smooth(20, 30, d)) : 0; });
     billboards.forEach(b => { if (b.visible) b.quaternion.copy(camera.quaternion); });
 
     fill.position.set(camera.position.x, camera.position.y, camera.position.z - 1);

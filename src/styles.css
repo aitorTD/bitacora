@@ -14,9 +14,10 @@ main{position:relative;z-index:3;padding-inline:clamp(16px,5vw,72px);padding-blo
 .eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 14px;display:flex;gap:10px;align-items:center}
 .eyebrow::before{content:"";width:22px;height:1px;background:currentColor}
 h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
-h1{font-size:clamp(3.6rem,13vw,8.5rem);line-height:.86;font-weight:850;font-variation-settings:"wdth" 128;text-shadow:0 2px 30px var(--glow)}
+h1{font-size:clamp(2.9rem,9vw,5.8rem);line-height:.9;font-weight:850;font-variation-settings:"wdth" 128;text-shadow:0 2px 30px var(--glow)}
 h2{font-size:clamp(1.6rem,4vw,2.25rem);line-height:1.02;font-weight:720;font-variation-settings:"wdth" 118;margin-bottom:12px}
 p{margin:0}
+.byline{margin-top:16px;font-family:var(--f-mono);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);text-shadow:0 1px 12px var(--glow)}
 .lede{font-size:clamp(1.05rem,2.2vw,1.25rem);max-width:30rem;margin-top:22px;color:var(--ink);text-shadow:0 1px 14px var(--glow)}
 .sub{color:var(--ink-dim);max-width:34rem}
 .cue{margin-top:34px;font-family:var(--f-mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);display:inline-flex;gap:10px;align-items:center}
@@ -71,6 +72,8 @@ p{margin:0}
 .dive-notes{margin:0;font-size:.92rem;color:var(--ink-dim);font-style:italic}
 .dive-notes::before{content:"“";color:var(--amber);margin-right:2px}
 .dive-notes::after{content:"”";color:var(--amber);margin-left:1px}
+.dive[hidden]{display:none}
+.more-dives{margin-top:18px;display:flex;justify-content:center}
 .empty{margin-top:18px;color:var(--ink-dim);font-size:.95rem}
 .profile{position:relative;margin:0}
 .profile svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible;touch-action:pan-y}

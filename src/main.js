@@ -254,6 +254,27 @@ function renderLogbook(dives, settings){
     svgEl.addEventListener('pointerdown', move);
     svgEl.addEventListener('pointerleave', leave);
   });
+
+  // only the latest few at first; the rest a batch at a time, so the page never becomes endless
+  var PAGE = 5, cards = Array.prototype.slice.call(divesEl.querySelectorAll('.dive'));
+  if (cards.length > PAGE){
+    cards.forEach(function(c, i){ c.hidden = i >= PAGE; });
+    var more = document.createElement('div'); more.className = 'more-dives';
+    more.innerHTML = '<button class="btn" type="button"></button>';
+    var btn = more.firstChild;
+    function label(){
+      var left = cards.filter(function(c){ return c.hidden; }).length;
+      btn.textContent = 'Ver más inmersiones (quedan ' + left + ')';
+      if (!left) more.remove();
+    }
+    btn.addEventListener('click', function(){
+      var shownNow = 0;
+      cards.forEach(function(c){ if (c.hidden && shownNow < PAGE){ c.hidden = false; shownNow++; } });
+      label();
+    });
+    divesEl.after(more);
+    label();
+  }
 }
 
 /* ---------- Scroll → depth ---------- */

@@ -38,7 +38,8 @@ index.html          contenido de la página y el selector día/noche
 src/main.js         estadísticas, titulaciones, perfiles de inmersión, profundímetro y scroll
 src/map.js          mapa de sitios de buceo: costa dibujada en SVG, sin servicios de mapas
 src/data/land.json  costa ya proyectada (se regenera con `node scripts/build-land.mjs`, por ejemplo para ampliar la región)
-src/scene.js        escena 3D con three.js (cielo, mar, arrecife, fauna, linterna)
+src/scene.js        escena 3D con three.js (cielo, mar, arrecife, pulpo, medusas, luz del submarinista)
+src/fauna.js        peces: bancos, peces que deambulan por la pantalla, salmonetes y raya en la arena
 src/diver.js        animación del submarinista: solo aletean las piernas, cuerpo y manos quietos
 src/styles.css      estilos y temas día/noche
 src/data/dives.json bitácora: las inmersiones importadas

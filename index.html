@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Aitor bajo el agua</title>
-<meta name="description" content="Bitácora de buceo de Aitor Trillo: inmersiones, perfiles de profundidad y estadísticas.">
+<title>Bitácora de buceo · Aitor Trillo</title>
+<meta name="description" content="Bitácora de buceo de Aitor Trillo: dónde he buceado, perfiles reales de cada inmersión, titulaciones y marcas.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,51 +47,54 @@
 <main>
   <section class="log" data-depth="-2.6" aria-labelledby="h-hero">
     <p class="eyebrow">Superficie · 0 m</p>
-    <h1 id="h-hero">Aitor<br>Trillo</h1>
-    <p class="lede">Submarinista. Aquí registro mis inmersiones, grabadas con Pro Dive en el Apple Watch, y lo que me voy encontrando ahí abajo.</p>
-    <p class="cue">Desliza para descender <span aria-hidden="true">↓</span></p>
+    <h1 id="h-hero">Bitácora<br>de buceo</h1>
+    <p class="byline">Aitor Trillo</p>
+    <p class="lede">Un diario de lo que pasa ahí abajo: dónde he buceado, hasta qué profundidad y el perfil real de cada inmersión.</p>
+    <p class="cue">Desliza para bajar <span aria-hidden="true">↓</span></p>
   </section>
 
   <section class="log panel" data-depth="8" aria-labelledby="h-stats">
-    <p class="eyebrow">−8 m · Bitácora</p>
-    <h2 id="h-stats">Mi bitácora en cifras</h2>
-    <p class="sub">Todo lo que llevo bajo el agua, sumado inmersión a inmersión.</p>
+    <p class="eyebrow">−8 m · En cifras</p>
+    <h2 id="h-stats">Lo que llevo buceado</h2>
+    <p class="sub">Sumado inmersión a inmersión, tal y como lo registra el reloj.</p>
     <div class="stats" id="stats"></div>
-    <p class="sample-note">Registrado con Pro Dive en el Apple Watch</p>
+    <p class="sample-note">Registrado con Pro Dive en un Apple Watch Ultra 2</p>
   </section>
 
   <section class="log panel" data-depth="14" aria-labelledby="h-cert">
     <p class="eyebrow">−14 m · Formación</p>
     <h2 id="h-cert">Titulaciones</h2>
+    <p class="sub">Los cursos que tengo y los que vienen.</p>
     <ol class="certs" id="certs"></ol>
   </section>
 
   <section class="log panel" data-depth="20" aria-labelledby="h-map">
     <p class="eyebrow">−20 m · Mapa</p>
     <h2 id="h-map">Dónde he buceado</h2>
+    <p class="sub">Cuanto más grande el punto, más veces he bajado ahí.</p>
     <div class="map" id="map" role="group" aria-label="Mapa de los sitios donde he buceado"></div>
   </section>
 
   <section class="log panel" data-depth="26" aria-labelledby="h-dives">
-    <p class="eyebrow">−26 m · Últimas inmersiones</p>
-    <h2 id="h-dives">Perfiles de inmersión</h2>
-    <p class="sub">Cada gráfico es el perfil real que guarda el reloj: bajada, fondo, ascenso y parada de seguridad. Pasa el dedo o el ratón por encima para ver cada minuto.</p>
+    <p class="eyebrow">−26 m · Inmersiones</p>
+    <h2 id="h-dives">Últimas inmersiones</h2>
+    <p class="sub">El perfil de cada una tal y como lo guarda el reloj: descenso, fondo, ascenso y parada de seguridad. Pasa el dedo o el ratón por el gráfico para ver cada minuto.</p>
     <div class="dives" id="dives"></div>
   </section>
 
   <section class="log panel" data-depth="33" aria-labelledby="h-rec">
     <p class="eyebrow">−33 m · Récords</p>
     <h2 id="h-rec">Mis marcas</h2>
-    <p class="sub">A partir de unos 10 m el rojo desaparece del agua: por eso aquí abajo las gorgonias parecen grises aunque sean rojas.</p>
+    <p class="sub">Un detalle de paso: a partir de unos 10 m el agua se traga el rojo, por eso las gorgonias de aquí abajo parecen grises.</p>
     <div class="records" id="records"></div>
   </section>
 
   <section class="log panel" data-depth="40" aria-labelledby="h-end">
     <p class="eyebrow">−40 m · Fondo</p>
-    <h2 id="h-end">Hasta aquí por hoy</h2>
-    <p class="sub">Aquí abajo solo brilla lo que tiene luz propia. Sube despacio: máximo 9 metros por minuto y parada de seguridad a 5 m.</p>
+    <h2 id="h-end">Fin de la inmersión</h2>
+    <p class="sub">Aquí abajo solo brilla lo que tiene luz propia. Toca subir despacio: como mucho 9 metros por minuto y tres minutos de parada a 5 m.</p>
     <div class="actions">
-      <button class="btn primary" id="ascend" type="button">Volver a la superficie</button>
+      <button class="btn primary" id="ascend" type="button">Subir a la superficie</button>
     </div>
     <p class="credits">Modelo 3D del submarinista: <a href="https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831" target="_blank" rel="noopener">«Diver»</a> de <a href="https://sketchfab.com/ucdavisterc" target="_blank" rel="noopener">ucdavisterc</a>, convertido a low poly. Al fondo, <a href="https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7" target="_blank" rel="noopener">«Outer Wilds - Nomai Mask scan»</a> de <a href="https://sketchfab.com/adamw1806" target="_blank" rel="noopener">09williamsad</a>, simplificado. Ambos con licencia <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
   </section>
