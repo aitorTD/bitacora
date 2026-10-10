@@ -7,6 +7,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { loadDiver, poseDiver, spring } from './diver.js';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/diver.glb`;
+// development only: ?close=x,y,z puts the camera next to the diver to check the rig
+const CLOSE = import.meta.env.DEV && new URLSearchParams(location.search).get('close')?.split(',').map(Number);
 
 export function initScene(dive){
   const canvas = document.getElementById('scene');
@@ -614,7 +616,7 @@ export function initScene(dive){
   const tmpV = new THREE.Vector3(), handWorld = new THREE.Vector3(), aimPt = new THREE.Vector3(), aimGoal = new THREE.Vector3(), aimDir = new THREE.Vector3();
   const qModel = new THREE.Quaternion();
   const swim = { prevD:null, vel:0, phase:0, breath:0, aimInit:false, aimOff:new THREE.Vector3(),
-    effort:{x:0, v:0}, pitch:{x:-.1, v:0}, amp:{x:.16, v:0}, lead:{x:0, v:0} };
+    effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.16, v:0}, lead:{x:0, v:0} };
   const swimPose = { phase:0, amp:0, effort:0, pitch:0, aim:new THREE.Vector3(0, 0, -1) };
 
   function frame(){
@@ -643,6 +645,9 @@ export function initScene(dive){
     if (small){
       camera.position.set(.9, camY, 6.5);
       camera.lookAt(-.4, camY + mix(-2.6, .95, above), -3);
+    } else if (CLOSE){
+      camera.position.set(diverRoot.position.x + CLOSE[0], diverRoot.position.y + CLOSE[1], CLOSE[2]);
+      camera.lookAt(diverRoot.position.x + .3, diverRoot.position.y, 0);
     } else {
       camera.position.set(-1.2 + pSmooth.x * .8, camY - pSmooth.y * .5 * (1 - above), 5.3);
       camera.lookAt(-2.6, camY + mix(-1.5, .75, above), -4);
@@ -687,9 +692,9 @@ export function initScene(dive){
     swim.vel += (vRaw - swim.vel) * (1 - Math.exp(-dt / .15));
     const vel = swim.vel;
     const effort = spring(swim.effort, Math.tanh(Math.abs(vel) / 5.5), 2.4, dt);
-    const pitch = spring(swim.pitch, -.1 - .78 * Math.tanh(vel / 5.5), 2.1, dt);
+    const pitch = spring(swim.pitch, -.04 - .78 * Math.tanh(vel / 5.5), 2.1, dt);
     const amp = spring(swim.amp, .16 + .84 * effort, 2.6, dt);
-    const freq = .5 + 1.4 * effort;                    // kicks per second
+    const freq = .4 + .85 * effort;                    // kick cycles per second: slow and calm, like a real diver
     swim.phase += Math.PI * 2 * freq * dt * speed;    // phase only accumulates: no jumps when speed changes
     const lead = spring(swim.lead, -.55 * Math.tanh(vel / 6), 1.6, dt);
     swim.breath += dt * speed / mix(4.6, 3.0, effort);

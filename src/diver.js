@@ -17,6 +17,7 @@ const J = {
   chest: [0.01, 0.0, 0.0],
   head: [-0.02, 0.09, -0.01],
   shoulder: [0.12, 0.07, 0.0],
+  elbow: [0.2, -0.002, -0.012],
   hand: [0.285, -0.04, -0.155],
   mouth: [-0.022, 0.118, -0.125],
   L: { hip: [-0.06, -0.13, -0.01], knee: [-0.055, -0.36, 0.035], ankle: [-0.068, -0.5, 0.135], tip: [-0.075, -0.7, -0.19] },
@@ -70,7 +71,7 @@ function cleanGeometry(src){
 }
 
 // bone order
-const B = { pelvis: 0, chest: 1, head: 2, arm: 3, lHip: 4, lKnee: 5, lAnkle: 6, rHip: 7, rKnee: 8, rAnkle: 9 };
+const B = { pelvis: 0, chest: 1, head: 2, arm: 3, lHip: 4, lKnee: 5, lAnkle: 6, rHip: 7, rKnee: 8, rAnkle: 9, fore: 10 };
 
 function skinWeights(geo, part){
   const pos = geo.attributes.position, n = pos.count;
@@ -81,7 +82,10 @@ function skinWeights(geo, part){
     const add = (b, v) => { if (v > 1e-4) w[b] = (w[b] || 0) + v; };
     if (part[i] === 1){ add(B.chest, 1); }
     else if (y > -0.09){
-      if (part[i] === 0 && x > 0.115 && y < 0.13 && y > -0.12){ const a = sstep(0.115, 0.15, x); add(B.arm, a); add(B.chest, 1 - a); }
+      if (part[i] === 0 && x > 0.115 && y < 0.13 && y > -0.12){
+        const a = sstep(0.115, 0.15, x), f = sstep(0.18, 0.215, x);
+        add(B.arm, a * (1 - f)); add(B.fore, a * f); add(B.chest, 1 - a);
+      }
       else if (y > 0.065 && x < 0.07){ const h = sstep(0.065, 0.11, y); add(B.head, h); add(B.chest, 1 - h); }
       else { const c = sstep(-0.075, 0.0, y); add(B.chest, c); add(B.pelvis, 1 - c); }
     } else {
@@ -109,6 +113,7 @@ function makeSkeleton(){
   const chest = mk('chest', J.chest, J.pelvis); pelvis.add(chest);
   const head = mk('head', J.head, J.chest); chest.add(head);
   const arm = mk('arm', J.shoulder, J.chest); chest.add(arm);
+  const fore = mk('fore', J.elbow, J.shoulder); arm.add(fore);
   const leg = s => {
     const hip = mk('hip', s.hip, J.pelvis); pelvis.add(hip);
     const knee = mk('knee', s.knee, s.hip); hip.add(knee);
@@ -117,8 +122,9 @@ function makeSkeleton(){
       d0: [V(s.knee).sub(V(s.hip)).normalize(), V(s.ankle).sub(V(s.knee)).normalize(), V(s.tip).sub(V(s.ankle)).normalize()] };
   };
   const L = leg(J.L), R = leg(J.R);
-  const bones = [pelvis, chest, head, arm, L.hip, L.knee, L.ankle, R.hip, R.knee, R.ankle];
-  return { bones, pelvis, chest, head, arm, L, R, armD0: V(J.hand).sub(V(J.shoulder)).normalize() };
+  const bones = [pelvis, chest, head, arm, L.hip, L.knee, L.ankle, R.hip, R.knee, R.ankle, fore];
+  return { bones, pelvis, chest, head, arm, fore, L, R,
+    upperD0: V(J.elbow).sub(V(J.shoulder)).normalize(), foreD0: V(J.hand).sub(V(J.elbow)).normalize() };
 }
 
 export async function loadDiver(url, { decorate } = {}){
@@ -143,61 +149,121 @@ export async function loadDiver(url, { decorate } = {}){
   mesh.frustumCulled = false;
 
   // anchors for the scene: torch hand and regulator
-  const hand = new THREE.Object3D(); hand.position.copy(V(J.hand).sub(V(J.shoulder))); sk.arm.add(hand);
+  const hand = new THREE.Object3D(); hand.position.copy(V(J.hand).sub(V(J.elbow))); sk.fore.add(hand);
+  finFrames(geo, sk);
   const mouth = new THREE.Object3D(); mouth.position.copy(V(J.mouth).sub(V(J.head))); sk.head.add(mouth);
 
   return { mesh, skeleton: sk, hand, mouth };
 }
 
 /*
+ * Every segment is rotated from its bind orientation to a target orientation
+ * given as a full frame (direction + reference axis), not a minimal rotation.
+ * That keeps fins and limbs from rolling around their own axis as they move.
+ */
+const mA = new THREE.Matrix4(), mB = new THREE.Matrix4();
+const vx = new THREE.Vector3(), vy = new THREE.Vector3(), vz = new THREE.Vector3();
+function basis(m, dir, ref){
+  vz.copy(dir).normalize();
+  vx.copy(ref).addScaledVector(vz, -ref.dot(vz)).normalize();
+  vy.crossVectors(vz, vx);
+  return m.makeBasis(vx, vy, vz);
+}
+function frameRot(out, d0, r0, d1, r1){
+  basis(mA, d0, r0); basis(mB, d1, r1);
+  return out.setFromRotationMatrix(mB.multiply(mA.transpose()));
+}
+
+// Blade normal of each fin, from the vertices that follow the ankle (smallest principal axis).
+function finFrames(geo, sk){
+  const pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+  [[sk.L, B.lAnkle], [sk.R, B.rAnkle]].forEach(([leg, bone]) => {
+    const pts = [];
+    for (let i = 0; i < pos.count; i++){
+      for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === bone && sw.getComponent(i, k) > 0.9){ pts.push(new THREE.Vector3().fromBufferAttribute(pos, i)); break; }
+    }
+    const c = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+    const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (const p of pts){ const d = [p.x - c.x, p.y - c.y, p.z - c.z]; for (let r = 0; r < 3; r++) for (let q = 0; q < 3; q++) C[r][q] += d[r] * d[q]; }
+    // smallest eigenvector = largest eigenvector of (trace·I − C), by power iteration
+    const tr = C[0][0] + C[1][1] + C[2][2];
+    let v = new THREE.Vector3(1, 1, 1).normalize();
+    for (let it = 0; it < 60; it++){
+      v = new THREE.Vector3(
+        (tr - C[0][0]) * v.x - C[0][1] * v.y - C[0][2] * v.z,
+        -C[1][0] * v.x + (tr - C[1][1]) * v.y - C[1][2] * v.z,
+        -C[2][0] * v.x - C[2][1] * v.y + (tr - C[2][2]) * v.z).normalize();
+    }
+    // pick the sign that needs the smaller turn to reach the rest pose
+    const q1 = frameRot(new THREE.Quaternion(), leg.d0[2], v, REST.fin, REST.finUp);
+    const q2 = frameRot(new THREE.Quaternion(), leg.d0[2], v.clone().negate(), REST.fin, REST.finUp);
+    leg.finN0 = Math.abs(q1.w) >= Math.abs(q2.w) ? v : v.negate();
+  });
+}
+
+// Rest posture in model space (+y head, +z back, +x right): horizontal trim,
+// thighs slightly down, knees bent so the shins rise, fins flat and trailing.
+const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+const rotX = (v, a) => v.clone().applyAxisAngle(X, a);
+const DOWN = new THREE.Vector3(0, -1, 0);
+const REST = {
+  hip: 0.24,          // thigh angle from the body axis, toward the belly
+  knee: -1.02,        // knee bend, toward the back
+  ankle: 0.86,        // fin angle back toward horizontal
+  fin: null, finUp: null,
+};
+REST.fin = rotX(DOWN, REST.hip + REST.knee + REST.ankle);
+REST.finUp = rotX(Z, REST.hip + REST.knee + REST.ankle);
+// torch arm: upper arm forward and down beside the chest
+const UPPER = new THREE.Vector3(0.32, 0.5, -0.8).normalize();
+
+const qP = new THREE.Quaternion(), qC = new THREE.Quaternion(), qT = new THREE.Quaternion(), qInv = new THREE.Quaternion();
+const qHip = new THREE.Quaternion(), qKnee = new THREE.Quaternion(), qAnk = new THREE.Quaternion();
+const qUp = new THREE.Quaternion(), qFore = new THREE.Quaternion();
+const aim = new THREE.Vector3(), tA = new THREE.Vector3(), tB = new THREE.Vector3();
+
+/*
  * Pose solver. `s` is the smoothed swim state:
  *   phase  - kick phase in radians (accumulated, never jumps)
  *   amp    - kick amplitude 0..1
- *   effort - 0 hovering .. 1 swimming hard
  *   pitch  - body pitch in radians (negative = head down)
  *   aim    - unit vector, torch direction in model space
  */
-const qA = new THREE.Quaternion(), qB = new THREE.Quaternion(), qC = new THREE.Quaternion(), qP = new THREE.Quaternion(), qInv = new THREE.Quaternion();
-const vT = new THREE.Vector3(), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
-const restThigh = new THREE.Vector3(0, -1, 0.06).normalize();
-const restShin = new THREE.Vector3(0, -1, 0.34).normalize();
-const restFin = new THREE.Vector3(0, -1, 0.5).normalize();
-const qRot = new THREE.Quaternion();
-function dirRot(out, d0, base, angle){
-  vT.copy(base).applyQuaternion(qRot.setFromAxisAngle(X, angle));
-  return out.setFromUnitVectors(d0, vT);
-}
-
 export function poseDiver(sk, s){
-  const { phase, amp, effort } = s;
-  // hips roll a little against each kick, the chest counters it
-  qP.setFromAxisAngle(Y, Math.sin(phase) * 0.07 * amp);
+  const { phase, amp } = s;
+  // a calm body: the hips roll a touch with each kick and the chest gives some of it back
+  qP.setFromAxisAngle(Y, Math.sin(phase) * 0.035 * amp);
   sk.pelvis.quaternion.copy(qP);
-  qA.setFromAxisAngle(Y, -Math.sin(phase) * 0.05 * amp).multiply(qB.setFromAxisAngle(X, Math.sin(phase * 2 + 0.6) * 0.025 * amp));
-  sk.chest.quaternion.copy(qA);
-  const chestModel = qC.copy(qP).multiply(qA);
+  sk.chest.quaternion.setFromAxisAngle(Y, -Math.sin(phase) * 0.02 * amp).multiply(qT.setFromAxisAngle(X, Math.sin(phase * 2 + 0.6) * 0.012 * amp));
+  qC.copy(qP).multiply(sk.chest.quaternion);
 
-  // flutter kick: hip drives, knee and fin follow with growing lag; legs in opposite phase
-  const A = 0.08 + 0.3 * amp;
+  // modified flutter kick: driven from the knees, small hip motion, fins whip a little behind
+  const A = 0.4 + 0.6 * amp;
   [[sk.L, 0], [sk.R, Math.PI]].forEach(([leg, off]) => {
     const p = phase + off;
-    const aHip = A * Math.sin(p);
-    const aKnee = -A * (0.55 + 0.45 * Math.sin(p - 1.0)) * 0.9;
-    const aFin = A * 1.15 * Math.sin(p - 1.9);
-    const rHip = dirRot(new THREE.Quaternion(), leg.d0[0], restThigh, aHip);
-    const rKnee = dirRot(new THREE.Quaternion(), leg.d0[1], restShin, aHip + aKnee);
-    const rAnkle = dirRot(new THREE.Quaternion(), leg.d0[2], restFin, aHip + aKnee + aFin);
-    leg.hip.quaternion.copy(qInv.copy(qP).invert().multiply(rHip));
-    leg.knee.quaternion.copy(qInv.copy(rHip).invert().multiply(rKnee));
-    leg.ankle.quaternion.copy(qInv.copy(rKnee).invert().multiply(rAnkle));
+    const h = REST.hip + 0.1 * A * Math.sin(p);
+    const k = h + REST.knee + 0.32 * A * Math.sin(p - 0.7);
+    const f = k + REST.ankle + 0.3 * A * Math.sin(p - 1.6);
+    frameRot(qHip, leg.d0[0], X, rotX(DOWN, h), X);
+    frameRot(qKnee, leg.d0[1], X, rotX(DOWN, k), X);
+    frameRot(qAnk, leg.d0[2], leg.finN0, rotX(DOWN, f), rotX(Z, f));
+    leg.hip.quaternion.copy(qInv.copy(qP).invert().multiply(qHip));
+    leg.knee.quaternion.copy(qInv.copy(qHip).invert().multiply(qKnee));
+    leg.ankle.quaternion.copy(qInv.copy(qKnee).invert().multiply(qAnk));
   });
 
   // head lifts to look ahead, more when the body tips down
-  const look = 0.28 + 0.45 * Math.max(0, -s.pitch) - 0.25 * Math.max(0, s.pitch);
-  sk.head.quaternion.copy(qInv.copy(chestModel).invert().multiply(qB.setFromAxisAngle(X, look)));
+  const look = 0.3 + 0.45 * Math.max(0, -s.pitch) - 0.25 * Math.max(0, s.pitch);
+  sk.head.quaternion.copy(qInv.copy(qC).invert().multiply(qT.setFromAxisAngle(X, look)));
 
-  // torch arm points where the light goes
-  const rArm = new THREE.Quaternion().setFromUnitVectors(sk.armD0, s.aim);
-  sk.arm.quaternion.copy(qInv.copy(chestModel).invert().multiply(rArm));
-  return effort;
+  // torch arm: the upper arm stays near the chest, the forearm points the light
+  aim.copy(s.aim);
+  if (aim.y < 0.15) aim.y = 0.15;           // never behind the shoulder
+  if (aim.x < -0.1) aim.x = -0.1;           // never across the chest
+  aim.normalize();
+  tA.copy(UPPER).lerp(aim, 0.25).normalize();
+  frameRot(qUp, sk.upperD0, Z, tA, Z);
+  frameRot(qFore, sk.foreD0, Z, aim, Z);
+  sk.arm.quaternion.copy(qInv.copy(qC).invert().multiply(qUp));
+  sk.fore.quaternion.copy(qInv.copy(qUp).invert().multiply(qFore));
 }
