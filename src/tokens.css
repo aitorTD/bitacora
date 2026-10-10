@@ -13,6 +13,7 @@
   --hud:rgba(1,8,14,.42);
   --amber:#ffae2b;
   --amber-soft:#d8a35e;
+  --stop:#b9a2ff;
   --land:rgba(95,214,228,.06);
   --coast:rgba(95,214,228,.4);
   --on-amber:#1b1203;
@@ -39,6 +40,7 @@
   --hud:rgba(240,250,252,.6);
   --amber:#b05a00;
   --amber-soft:#b05a00;
+  --stop:#6b45d8;
   --land:rgba(255,255,255,.38);
   --coast:rgba(6,60,80,.34);
   --on-amber:#fff8ee;
@@ -53,7 +55,7 @@
 @media (prefers-color-scheme: light){
   :root:not([data-dive]):not([data-theme="dark"]){
     --abyss:#0b4e6c; --ink:#062431; --ink-dim:#3d6470; --line:rgba(6,60,80,.2); --panel:rgba(232,247,249,.66); --card-solid:#eef8fa; --card:rgba(247,253,254,.92); --tip:rgba(250,254,255,.96); --hud:rgba(240,250,252,.6);
-    --amber:#b05a00; --amber-soft:#b05a00; --land:rgba(255,255,255,.38); --coast:rgba(6,60,80,.34); --on-amber:#fff8ee; --cyan:#08788c; --on-cyan:#f4fbfc; --veil-a:rgba(220,248,252,.32); --veil-b:rgba(220,248,252,.1); --glow:rgba(225,250,255,.55);
+    --amber:#b05a00; --amber-soft:#b05a00; --stop:#6b45d8; --land:rgba(255,255,255,.38); --coast:rgba(6,60,80,.34); --on-amber:#fff8ee; --cyan:#08788c; --on-cyan:#f4fbfc; --veil-a:rgba(220,248,252,.32); --veil-b:rgba(220,248,252,.1); --glow:rgba(225,250,255,.55);
     --w0:#2fa6b6; --w1:#0a4b68; --w2:#04192b; --w3:#01060c; color-scheme:light;
   }
 }

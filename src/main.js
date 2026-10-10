@@ -174,9 +174,9 @@ function renderLogbook(dives, settings){
     // safety stop band, 3 to 6 m: just a tinted strip behind the profile; its name goes in a small
     // legend above the chart, so no label ever sits on top of the line
     var hasBand = yMax >= 6;
-    var band = hasBand ? '<g class="stop-band"><rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--amber)" opacity=".09"/>' +
-      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(3) + '" y2="' + y(3) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".55"/>' +
-      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(6) + '" y2="' + y(6) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".55"/></g>' : '';
+    var band = hasBand ? '<g class="stop-band"><rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--stop)" opacity=".16"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(3) + '" y2="' + y(3) + '" stroke="var(--stop)" stroke-width=".9" stroke-dasharray="3 3" opacity=".8"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(6) + '" y2="' + y(6) + '" stroke="var(--stop)" stroke-width=".9" stroke-dasharray="3 3" opacity=".8"/></g>' : '';
     var gid = 'pg' + idx;
     var px = x(peak[0]), py = y(peak[1]);
     var labelLeft = px > W * 0.6;
