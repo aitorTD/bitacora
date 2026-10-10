@@ -21,6 +21,7 @@ function toast(msg, isError = false){
 function explain(err){
   const m = (err && (err.message || err.error_description)) || String(err);
   if (/invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if (/could not find the table|schema cache|relation .* does not exist/i.test(m)) return 'La tabla de inmersiones aún no existe en Supabase. Ejecuta supabase/schema.sql en el SQL Editor y vuelve a probar.';
   if (/email not confirmed/i.test(m)) return 'Este email aún no está confirmado en Supabase.';
   if (/row-level security|permission denied|violates row/i.test(m)) return 'Tu usuario no tiene permiso para cambiar la bitácora. Añádelo a la tabla admins (ver supabase/schema.sql).';
   if (/duplicate key|dives_start_minute/i.test(m)) return 'Alguna inmersión ya estaba guardada. Recarga la página y vuelve a probar.';

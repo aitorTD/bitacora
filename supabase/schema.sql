@@ -30,5 +30,8 @@ create policy "admins add dives"    on public.dives for insert to authenticated 
 create policy "admins change dives" on public.dives for update to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "admins delete dives" on public.dives for delete to authenticated using (public.is_admin());
 
+-- make the API see the new tables straight away
+notify pgrst, 'reload schema';
+
 -- After creating your user in Authentication → Users, make it the admin (change the email):
 -- insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';
