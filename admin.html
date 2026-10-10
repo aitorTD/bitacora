@@ -119,6 +119,25 @@
           </div>
         </form>
       </section>
+
+      <section class="card" id="backupCard">
+        <p class="eyebrow">Seguridad</p>
+        <h2>Copia de seguridad</h2>
+        <p class="sub small">Descarga en un archivo todas las inmersiones, las titulaciones, el álbum y los ajustes. El plan gratuito de Supabase no guarda copias, así que conviene bajar una de vez en cuando y guardarla fuera (iCloud, Drive…).</p>
+        <div class="actions">
+          <button class="btn primary" id="backupBtn" type="button">Descargar copia</button>
+          <label class="btn ghost" for="restoreFile">Restaurar desde archivo<input id="restoreFile" type="file" accept=".json,application/json" hidden></label>
+        </div>
+        <p class="count backup-last" id="backupLast" hidden></p>
+        <div class="restore-confirm" id="restoreConfirm" hidden>
+          <p id="restoreSummary"></p>
+          <p class="sub small">Se escribe lo que hay en la copia; lo que esté en la bitácora y no en la copia se queda como está.</p>
+          <div class="actions">
+            <button class="btn primary" id="restoreGo" type="button">Restaurar</button>
+            <button class="btn ghost" id="restoreCancel" type="button">Cancelar</button>
+          </div>
+        </div>
+      </section>
     </div>
     <div class="col col-main">
       <section class="card" id="logCard">

@@ -1,5 +1,5 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, listCerts, saveCert, deleteCert } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, listCerts, saveCert, deleteCert, exportAll, readBackup, restoreAll, listSeen } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives, statOn } from './lib/logbook.js';
 
@@ -48,7 +48,7 @@ async function enterPanel(session){
 }
 
 /* ---------- species album: the same album as the public page, but editable ---------- */
-let albumLoaded = false;
+let albumLoaded = false, adminAlbum = null;
 function watchAlbum(){
   if (albumLoaded) return;
   // three.js and the figures only load when the album card comes into view
@@ -68,7 +68,7 @@ async function loadAlbum(){
     const setCount = n => { $('albumCount').textContent = `${n} / ${SPECIES.length}`; };
     setCount(rows.filter(r => SPECIES.some(s => s.id === r.species_id)).length);
     holder.innerHTML = '';
-    createAlbum(holder, { editable: true, api, seen: rows, showProgress: false,
+    adminAlbum = createAlbum(holder, { editable: true, api, seen: rows, showProgress: false,
       onChange: (msg, seen, isError) => { toast(msg, isError); setCount(seen.size); } });
   } catch (err){
     holder.innerHTML = '<p class="empty">No se pudo cargar el álbum.</p>'; console.error(err);
@@ -354,3 +354,64 @@ $('logout').addEventListener('click', async () => { await supabase.auth.signOut(
     if (event === 'SIGNED_OUT') leavePanel();
   });
 })();
+
+/* ---------- backup ---------- */
+const BACKUP_KEY = 'bitacora-last-backup';
+const day = iso => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
+function showLastBackup(){
+  let iso = null; try { iso = localStorage.getItem(BACKUP_KEY); } catch (e) {}
+  $('backupLast').hidden = !iso;
+  if (iso) $('backupLast').textContent = `Última copia: ${day(iso)} (desde este navegador)`;
+}
+showLastBackup();
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const describe = t => [plural((t.dives || []).length, 'inmersión', 'inmersiones'), plural((t.certifications || []).length, 'titulación', 'titulaciones'), plural((t.species_seen || []).length, 'especie vista', 'especies vistas')].join(', ');
+
+$('backupBtn').addEventListener('click', async () => {
+  const btn = $('backupBtn'); btn.disabled = true; btn.textContent = 'Preparando…';
+  try {
+    const backup = await exportAll();
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bitacora-copia-${backup.exported_at.slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    try { localStorage.setItem(BACKUP_KEY, backup.exported_at); } catch (e) {}
+    showLastBackup();
+    toast(`Copia descargada: ${describe(backup.tables)}`);
+  } catch (err){ toast(explain(err), true); }
+  btn.disabled = false; btn.textContent = 'Descargar copia';
+});
+
+let restoring = null;
+$('restoreFile').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try {
+    restoring = readBackup(await file.text());
+    $('restoreSummary').innerHTML = `<strong>${esc(file.name)}</strong> · copia del ${esc(day(restoring.exported_at))}: ${esc(describe(restoring.tables))}.`;
+    $('restoreConfirm').hidden = false;
+  } catch (err){
+    restoring = null;
+    toast(err instanceof SyntaxError ? 'El archivo no se puede leer: no es un JSON válido.' : explain(err), true);
+  }
+});
+$('restoreCancel').addEventListener('click', () => { restoring = null; $('restoreConfirm').hidden = true; });
+$('restoreGo').addEventListener('click', async () => {
+  if (!restoring) return;
+  const btn = $('restoreGo'); btn.disabled = true; btn.textContent = 'Restaurando…';
+  try {
+    await restoreAll(restoring);
+    toast(`Copia restaurada: ${describe(restoring.tables)}`);
+    $('restoreConfirm').hidden = true;
+    await refresh();
+    if (adminAlbum){
+      adminAlbum.setSeen(await listSeen());
+      const total = $('albumCount').textContent.split('/')[1]?.trim();
+      if (total) $('albumCount').textContent = `${adminAlbum.count()} / ${total}`;
+    }
+    restoring = null;
+  } catch (err){ toast(explain(err), true); }
+  btn.disabled = false; btn.textContent = 'Restaurar';
+});

@@ -121,3 +121,9 @@ input[type=text],input[type=date],input[type=search]{font:inherit;color:var(--in
 .chip.planned{color:var(--amber);border-color:var(--amber)}
 @media (max-width:520px){.cert-form{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){.row{grid-template-columns:minmax(0,1fr)}.row-no{display:none}.row-side{justify-content:flex-start}.row-stats{grid-column:1}}
+.backup-last{display:block;margin-top:12px}
+.restore-confirm{margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-left:2px solid var(--amber);border-radius:4px;background:var(--card)}
+.restore-confirm p{margin:0}
+.restore-confirm .sub.small{margin-top:6px}
+.restore-confirm .actions{margin-top:12px}
+label.btn{cursor:pointer}

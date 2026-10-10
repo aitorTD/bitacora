@@ -102,3 +102,38 @@ export async function unmarkSeen(speciesId){
   const { error } = await supabase.from('species_seen').delete().eq('species_id', speciesId);
   if (error) throw error;
 }
+
+/* ---------- backup: every table to one JSON file, and back ---------- */
+const BACKUP_TABLES = { settings: 'id', certifications: 'id', dives: 'id', species_seen: 'species_id' };
+async function selectAll(table){
+  const rows = [];
+  for (let from = 0; ; from += 1000){
+    const { data, error } = await supabase.from(table).select('*').range(from, from + 999);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < 1000) return rows;
+  }
+}
+export async function exportAll(){
+  const tables = {};
+  for (const t of Object.keys(BACKUP_TABLES)) tables[t] = await selectAll(t);
+  return { app: 'bitacora', version: 1, exported_at: new Date().toISOString(), tables };
+}
+export function readBackup(json){
+  const b = typeof json === 'string' ? JSON.parse(json) : json;
+  if (!b || b.app !== 'bitacora' || !b.tables) throw new Error('Este archivo no es una copia de la bitácora.');
+  return b;
+}
+// upserts: what is in the copy is written back, nothing that is only in the database is deleted
+export async function restoreAll(backup){
+  const counts = {};
+  for (const [t, key] of Object.entries(BACKUP_TABLES)){
+    const rows = backup.tables[t] || [];
+    for (let i = 0; i < rows.length; i += 200){
+      const { error } = await supabase.from(t).upsert(rows.slice(i, i + 200), { onConflict: key });
+      if (error) throw error;
+    }
+    counts[t] = rows.length;
+  }
+  return counts;
+}

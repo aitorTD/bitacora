@@ -72,6 +72,10 @@ Un álbum de cromos con 59 especies que se pueden ver buceando en España (Medit
 
 El álbum público es de solo lectura. Se edita desde el panel (`/admin`, tarjeta «Especies vistas»), que muestra el mismo álbum: al tocar un cromo se marca como visto o se quita, con un solo botón, y el cambio sale al momento en la web. Lo visto se guarda en Supabase, tabla `species_seen` (migración 004); el catálogo vive en el código.
 
+## Copia de seguridad
+
+El plan gratuito de Supabase no hace copias. En el panel, la tarjeta «Copia de seguridad» descarga un JSON con todas las tablas (`dives`, `certifications`, `species_seen`, `settings`) y permite restaurarlo: escribe lo que hay en el archivo (upsert) y no borra nada que no esté en él.
+
 - `src/album/species.js`: catálogo (nombre, nombre científico, grupo, zonas, dato curioso, rareza, zonas calientes y cómo se dibuja).
 - `src/album/models.js`: generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).
 - `src/album/ui.js` + `ui.css`: el componente del álbum (rejilla, filtros, visor y mapa), usado por la página pública y por el panel.
