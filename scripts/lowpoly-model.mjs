@@ -6,7 +6,8 @@
  *
  *   npm i --no-save @gltf-transform/core@4.1.1 @gltf-transform/extensions@4.1.1 @gltf-transform/functions@4.1.1 meshoptimizer@0.22.0 sharp@0.33.5
  *   node scripts/lowpoly-model.mjs original.glb public/models/diver.glb 0.4 9
- *                                  input        output                  ratio palette
+ *                                  input        output                  ratio palette [max error]
+ *   node scripts/lowpoly-model.mjs nomai-mask.glb public/models/nomai-mask.glb 0.03 14 0.02
  */
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -14,7 +15,7 @@ import { weld, simplify, unweld, prune, dedup, resample } from '@gltf-transform/
 import { MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
-const [inp, out, ratioArg] = process.argv.slice(2);
+const [inp, out, ratioArg, , errArg] = process.argv.slice(2);
 const RATIO = +(ratioArg || 0.3);
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const doc = await io.read(inp);
@@ -39,15 +40,15 @@ function sample(px, u, v){
 }
 
 // 3. simplify
-await doc.transform(weld({ tolerance: 0.0001 }), simplify({ simplifier: MeshoptSimplifier, ratio: RATIO, error: 0.004, lockBorder: false }));
+await doc.transform(weld({ tolerance: 0.0001 }), simplify({ simplifier: MeshoptSimplifier, ratio: RATIO, error: +(errArg || 0.004), lockBorder: false }));
 // 4. one colour per triangle, from the texture under it, then snapped to a small palette
 await doc.transform(unweld());
 const faces = [];   // {prim, t, c, area}
 for (const mesh of root.listMeshes()){
   for (const prim of mesh.listPrimitives()){
     const mat = prim.getMaterial(); const sg = mat && ext(mat);
-    const diffTex = sg?.getDiffuseTexture();
-    const factor = sg ? sg.getDiffuseFactor() : [1, 1, 1, 1];
+    const diffTex = sg ? sg.getDiffuseTexture() : mat?.getBaseColorTexture();
+    const factor = sg ? sg.getDiffuseFactor() : (mat ? mat.getBaseColorFactor() : [1, 1, 1, 1]);
     const uv = prim.getAttribute('TEXCOORD_0'), pos = prim.getAttribute('POSITION');
     const n = pos.getCount();
     const px = diffTex ? await pixels(diffTex) : null;

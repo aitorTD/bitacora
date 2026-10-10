@@ -28,13 +28,13 @@ Se añaden a `src/data/dives.json` y las que ya estaban se saltan, así que pued
 index.html          contenido de la página y el selector día/noche
 src/main.js         estadísticas, perfiles de inmersión, profundímetro y scroll
 src/scene.js        escena 3D con three.js (cielo, mar, arrecife, fauna, linterna)
-src/diver.js        animación del submarinista: aleteo del modelo + posturas de descenso y ascenso
+src/diver.js        animación del submarinista: solo aletean las piernas, cuerpo y manos quietos
 src/styles.css      estilos y temas día/noche
 src/data/dives.json bitácora: las inmersiones importadas
 src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
 src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
 scripts/            importador de inmersiones y conversor del modelo a low poly
-public/models/      modelo 3D del submarinista (GLB low poly)
+public/models/      submarinista y máscara nomai (GLB)
 ```
 
 ## Despliegue
@@ -48,8 +48,10 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 
 ## Easter egg
 
-Al llegar al fondo, la luz del submarinista se posa en un punto de arena libre que queda a la vista (a la derecha del texto en ordenador, debajo en el móvil). Ese punto es el grupo `easterEgg` de `src/scene.js`: lo que se añada a ese grupo aparece justo en el foco. En desarrollo, `?egg` muestra un marcador rojo en el sitio.
+Al llegar al fondo, la luz del submarinista se posa sobre una máscara nomai de Outer Wilds medio enterrada en la arena. El sitio se calcula para que quede siempre a la vista (a la derecha del texto en ordenador, debajo en el móvil); es el grupo `easterEgg` de `src/scene.js`.
 
 ## Créditos
 
 Modelo 3D del submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly (malla simplificada y colores planos) con `scripts/lowpoly-model.mjs`.
+
+Máscara del easter egg: [«Outer Wilds - Nomai Mask scan»](https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7) de [09williamsad](https://sketchfab.com/adamw1806), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Simplificada de 245.000 a 21.600 triángulos con `scripts/lowpoly-textured.mjs`. Outer Wilds es de Mobius Digital.

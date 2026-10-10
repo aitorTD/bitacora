@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadDiver, updateDiver, spring } from './diver.js';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/diver.glb`;
@@ -221,8 +222,26 @@ export function initScene(dive){
   // the spot on the seabed where the light comes to rest: put the easter egg in this group
   const easterEgg = new THREE.Group(); easterEgg.name = 'easterEgg';
   scene.add(easterEgg);
-  if (import.meta.env.DEV && new URLSearchParams(location.search).has('egg'))
-    easterEgg.add(new THREE.Mesh(new THREE.OctahedronGeometry(.25), new THREE.MeshStandardMaterial({color:'#ff3b30', emissive:'#ff3b30', emissiveIntensity:.4})));
+  // Easter egg: a Nomai mask from Outer Wilds, half buried in the sand, right where the light lands.
+  // Model: "Outer Wilds - Nomai Mask scan" by 09williamsad, CC BY 4.0 (simplified, see scripts/).
+  const maskPivot = new THREE.Group(); easterEgg.add(maskPivot);
+  new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/nomai-mask.glb`).then(g => {
+    const m = g.scene;
+    m.traverse(o => { if (o.isMesh){ o.material.flatShading = true; o.material.roughness = .78; o.material.metalness = 0; o.material.needsUpdate = true; } });
+    const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+    const k = 2.1 / size.x;                  // about 2 m across: an old Nomai relic, big enough to read from the camera
+    m.scale.setScalar(k); m.position.copy(c).multiplyScalar(-k);
+    maskPivot.add(m);
+  }).catch(err => console.warn('Mask failed to load', err));
+  // sand heaped around it so it reads as buried, not floating
+  {
+    const g = new THREE.CircleGeometry(1.7, 32, 0, Math.PI * 2); g.rotateX(-Math.PI / 2);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++){ const r = Math.hypot(p.getX(i), p.getZ(i)) / 1.7; p.setY(i, .1 * Math.pow(Math.max(0, 1 - r), 1.4) * (1 + .3 * Math.sin(p.getX(i) * 9 + p.getZ(i) * 7))); }
+    g.computeVertexNormals();
+    const mound = new THREE.Mesh(g, new THREE.MeshStandardMaterial({color:'#bfa57c', roughness:1, flatShading:true}));
+    mound.position.y = .01; easterEgg.add(mound);
+  }
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
@@ -474,13 +493,24 @@ export function initScene(dive){
   const eggP = eggRay.ray.at(eggT, new THREE.Vector3());
   const EGG_X = eggP.x, EGG_Z = eggP.z;
   easterEgg.position.set(EGG_X, floorY(EGG_X, EGG_Z), EGG_Z);
+  // the face leans back toward the camera like a stone half sunk in the sand, a little askew
+  {
+    const toCam = eggCam.position.clone().sub(easterEgg.position).normalize();
+    const face = toCam.add(new THREE.Vector3(0, .35, 0)).normalize();
+    // keep the mask's own "up" pointing up, so the face is level and only leans back
+    const m4 = new THREE.Matrix4(), side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), face).normalize();
+    const upv = new THREE.Vector3().crossVectors(face, side);
+    maskPivot.quaternion.setFromRotationMatrix(m4.makeBasis(side, upv, face));
+    maskPivot.rotateZ(-.18);                       // turned a touch off-square
+    maskPivot.position.y = .38;                    // the lower third stays under the sand
+  }
   for (let i = 0; i < 30; i++){
     const x = rr(-8.5, 8.5), z = rr(3, -34), s = rr(.45, 2.1);
-    if (Math.hypot(x - EGG_X, z - EGG_Z) < s + 1.4) continue;   // keep the spot clear
+    if (Math.hypot(x - EGG_X, z - EGG_Z) < s + 2.6) continue;   // keep the spot clear
     boulders.push({x, z, s, sy:rr(.55, .9), y:floorY(x, z) + s * .25});
   }
-  // pinnacle near the diver's last stop
-  const pinX = -1.6, pinZ = -11.5;
+  // pinnacle a little off to the side, framing the mask without hiding it
+  const pinX = EGG_X - 4.2, pinZ = EGG_Z - 3.5;
   boulders.push({x:pinX, z:pinZ, s:2.6, sy:1.45, y:floorY(pinX, pinZ) + 1.1, pin:true});
   boulders.push({x:pinX + 1.4, z:pinZ - 1.2, s:1.7, sy:1.2, y:floorY(pinX + 1.4, pinZ - 1.2) + .6});
   const rockGeos = [rockGeometry(1.3), rockGeometry(4.1)];
@@ -545,7 +575,7 @@ export function initScene(dive){
     const urch = new THREE.InstancedMesh(urchinGeo, new THREE.MeshStandardMaterial({color:'#2b1631', roughness:.6, metalness:.1}), 46);
     seed = 99;
     for (let i = 0; i < 46; i++){
-      let x = rr(-8, 8), z = rr(2, -30); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.1) x += 2.4; const y = floorY(x, z) + .04;
+      let x = rr(-8, 8), z = rr(2, -30); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.9) x += 3.8; const y = floorY(x, z) + .04;
       dummy.position.set(x, y, z); dummy.rotation.set(0, rand() * 6, 0); dummy.scale.setScalar(rr(.8, 1.3)); dummy.updateMatrix(); urch.setMatrixAt(i, dummy.matrix);
     }
     scene.add(urch);
@@ -556,7 +586,7 @@ export function initScene(dive){
     starGeo.rotateX(-Math.PI / 2);
     const stars = new THREE.InstancedMesh(starGeo, new THREE.MeshStandardMaterial({color:'#c2391f', roughness:.85, metalness:0}), 16);
     for (let i = 0; i < 16; i++){
-      const x = rr(-7.5, 7.5), z = rr(2, -28);
+      let x = rr(-7.5, 7.5), z = rr(2, -28); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.9) x += 3.8;
       dummy.position.set(x, floorY(x, z) + .01, z); dummy.rotation.set(rr(-.08, .08), rand() * 6.28, rr(-.08, .08)); dummy.scale.setScalar(rr(.8, 1.4)); dummy.updateMatrix(); stars.setMatrixAt(i, dummy.matrix);
     }
     scene.add(stars);
@@ -621,11 +651,12 @@ export function initScene(dive){
   const clock = new THREE.Clock();
   let t = 0, firstFrame = true;
   const tmpV = new THREE.Vector3();
-  const swim = { prevD:null, vel:0, breath:0, effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.3, v:0}, rate:{x:.45, v:0},
+  const swim = { prevD:null, vel:0, breath:0, effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.18, v:0}, rate:{x:.32, v:0},
     lead:{x:0, v:0}, down:{x:0, v:0}, up:{x:0, v:0}, yaw:{x:0, v:0}, light:0, flicker:-1, lightOn:false };
-  const diverState = { rate:.45, amp:.3, descend:0, ascend:0, dt:0 };
+  const diverState = { rate:.32, amp:.18, descend:0, ascend:0, dt:0 };
   const lightAim = new THREE.Vector3(), lightGoal = new THREE.Vector3(), lightPos = new THREE.Vector3();
   let lightAimInit = false;
+  const eggAimOffset = new THREE.Vector3(0, 0, -.9);   // centre of the pool just behind the mask
 
   function frame(){
     const dt = Math.min(clock.getDelta(), DT_MAX);
@@ -705,17 +736,18 @@ export function initScene(dive){
     const up = spring(swim.up, smooth(.4, 3, -vel), 3, dt);        // how much it is ascending
     // descending: head down, gliding with light kicks; ascending: head up, slow, letting the BCD lift
     const pitch = spring(swim.pitch, -.04 - .7 * down * (.6 + .4 * effort) + .62 * up, 2.6, dt);
-    const amp = spring(swim.amp, (.3 + .55 * effort) * (1 - .35 * up) * (1 - .2 * down), 2.4, dt);
-    const rate = spring(swim.rate, (.42 + .7 * effort) * (1 - .3 * up), 2.4, dt);
+    const amp = spring(swim.amp, (.18 + .5 * effort) * (1 - .35 * up) * (1 - .2 * down), 2.4, dt);
+    const rate = spring(swim.rate, (.32 + .55 * effort) * (1 - .3 * up), 2.4, dt);
     const lead = spring(swim.lead, -.5 * Math.tanh(vel / 6), 1.5, dt);
     // a small turn into the direction of travel, like a diver steering with the body
-    const yaw = spring(swim.yaw, .18 * (down - up), 1.6, dt);
+    const yaw = spring(swim.yaw, .1 * (down - up), 1.6, dt);
     swim.breath += dt * speed / mix(4.6, 3.0, effort);
     const breathe = Math.sin(swim.breath * Math.PI * 2);
-    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .035, 0);
-    diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .23) * .05;
-    diverPitch.rotation.x = pitch + breathe * .015;
-    diverRoll.rotation.z = Math.sin(t * .4) * .025 + yaw * .25;
+    // a still body: breathing lifts and lowers it a few centimetres, nothing else sways
+    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .02, 0);
+    diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .17) * .012;
+    diverPitch.rotation.x = pitch + breathe * .006;
+    diverRoll.rotation.z = yaw * .15;
 
     if (diverRig){
       diverState.rate = rate * speed; diverState.amp = amp; diverState.descend = down; diverState.ascend = up; diverState.dt = dive.reduce ? 0 : dt;
@@ -733,14 +765,15 @@ export function initScene(dive){
       diverRig.lightAnchor.getWorldPosition(lightPos);
       // ahead and down along the swim; near the bottom it settles on the easter egg
       lightGoal.set(lightPos.x + 4.6 + Math.sin(t * .3) * .4, lightPos.y - 2.4 + pitch * 2 + Math.sin(t * .4) * .25, -3);
-      lightGoal.lerp(easterEgg.position, smooth(31, 38.5, d));
+      lightGoal.lerp(tmpV.copy(easterEgg.position).add(eggAimOffset), smooth(31, 38.5, d));
       if (!lightAimInit){ lightAim.copy(lightGoal); lightAimInit = true; }
       lightAim.lerp(lightGoal, 1 - Math.exp(-dt * 2.4));
       lightRig.position.copy(lightPos);
       lightRig.lookAt(tmpV.copy(lightPos).multiplyScalar(2).sub(lightAim));    // the light points down its -z axis
       spotTarget.position.set(0, 0, -lightPos.distanceTo(lightAim));
     }
-    spot.intensity = swim.light * 85;
+    spot.intensity = swim.light * mix(85, small ? 22 : 38, smooth(31, 38.5, d));
+    spot.angle = mix(.34, .42, smooth(31, 38.5, d));
     beamMat.uniforms.uOpacity.value = swim.light;
     coreMat.uniforms.uOpacity.value = swim.light * .8;
 
