@@ -1,5 +1,5 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, listCerts, saveCert, deleteCert } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives, statOn } from './lib/logbook.js';
 
@@ -21,6 +21,7 @@ function toast(msg, isError = false){
 function explain(err){
   const m = (err && (err.message || err.error_description)) || String(err);
   if (/invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if (/certifications/i.test(m) && /could not find|schema cache|does not exist/i.test(m)) return 'Falta preparar las titulaciones en Supabase: ejecuta supabase/migrations/003_formacion.sql en el SQL Editor.';
   if (/settings|hidden|no_sac/i.test(m)) return 'Falta preparar los ajustes en Supabase: ejecuta supabase/migrations/002_ajustes.sql en el SQL Editor.';
   if (/could not find the table|schema cache|relation .* does not exist/i.test(m)) return 'La tabla de inmersiones aún no existe en Supabase. Ejecuta supabase/schema.sql en el SQL Editor y vuelve a probar.';
   if (/email not confirmed/i.test(m)) return 'Este email aún no está confirmado en Supabase.';
@@ -53,6 +54,7 @@ async function refresh(){
   try { saved = await listDives(); }
   catch (err){ toast(explain(err), true); saved = []; }
   renderSaved();
+  refreshCerts();
 }
 
 function row(d, side, below = ''){
@@ -129,6 +131,82 @@ $('logList').addEventListener('click', async e => {
     btn.disabled = true;
     try { await deleteDive(id); toast('Inmersión borrada'); await refresh(); }
     catch (err){ toast(explain(err), true); renderSaved(); }
+  }
+});
+
+/* ---------- certifications ---------- */
+let certs = [];
+let editing = null;   // id of the certification in the form, or 'new'
+const monthYear = iso => new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+async function refreshCerts(){
+  try { certs = await listCerts(); }
+  catch (err){
+    certs = [];
+    $('certEmpty').textContent = explain(err); $('certEmpty').hidden = false;
+    $('certList').innerHTML = ''; $('certAdd').disabled = true;
+    return;
+  }
+  $('certAdd').disabled = false;
+  $('certEmpty').textContent = 'Aún no hay titulaciones. Añade la primera.';
+  renderCerts();
+}
+
+function renderCerts(){
+  $('certEmpty').hidden = certs.length > 0;
+  $('certList').innerHTML = certs.map(c => {
+    const meta = [c.agency, c.status === 'planned' ? 'pendiente' : c.obtained_on ? monthYear(c.obtained_on) : 'sin fecha', c.center].filter(Boolean).join(' · ');
+    return `<li class="row" data-id="${esc(c.id)}">
+      <span class="row-no">${c.status === 'planned' ? '○' : '●'}</span>
+      <div class="row-main"><div class="row-title">${esc(c.title)}</div><div class="row-meta">${esc(meta)}</div></div>
+      <div class="row-side">${c.status === 'planned' ? '<span class="chip planned">Pendiente</span>' : ''}
+        <button class="btn small" type="button" data-act="edit">Editar</button>
+        <button class="btn danger small" type="button" data-act="ask">Borrar</button></div>
+    </li>`;
+  }).join('');
+}
+
+function setStatus(status){
+  $('certForm').querySelectorAll('[data-status]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.status === status)));
+  $('cDate').disabled = status === 'planned';
+  if (status === 'planned') $('cDate').value = '';
+}
+const formStatus = () => $('certForm').querySelector('[data-status][aria-pressed="true"]').dataset.status;
+
+function openForm(c){
+  editing = c ? c.id : 'new';
+  $('cTitle').value = c?.title ?? ''; $('cAgency').value = c?.agency ?? ''; $('cCenter').value = c?.center ?? '';
+  $('cDate').value = c?.obtained_on ?? '';
+  setStatus(c?.status ?? 'done');
+  $('certSave').textContent = c ? 'Guardar cambios' : 'Añadir titulación';
+  $('certForm').hidden = false; $('certAdd').hidden = true;
+  $('cTitle').focus();
+}
+function closeForm(){ editing = null; $('certForm').hidden = true; $('certAdd').hidden = false; }
+
+$('certAdd').addEventListener('click', () => openForm(null));
+$('certCancel').addEventListener('click', closeForm);
+$('certForm').addEventListener('click', e => { const b = e.target.closest('[data-status]'); if (b) setStatus(b.dataset.status); });
+$('certForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const title = $('cTitle').value.trim();
+  if (!title){ toast('Escribe el nombre de la titulación.', true); $('cTitle').focus(); return; }
+  const cert = { id: editing === 'new' ? null : editing, title, agency: $('cAgency').value.trim(), center: $('cCenter').value.trim(), status: formStatus(), obtained_on: $('cDate').value || null };
+  const btn = $('certSave'); btn.disabled = true;
+  try { await saveCert(cert); toast(cert.id ? 'Titulación actualizada' : 'Titulación añadida'); closeForm(); await refreshCerts(); }
+  catch (err){ toast(explain(err), true); }
+  btn.disabled = false;
+});
+$('certList').addEventListener('click', async e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const li = btn.closest('.row'), id = li.dataset.id, side = li.querySelector('.row-side');
+  if (btn.dataset.act === 'edit') openForm(certs.find(c => String(c.id) === id));
+  else if (btn.dataset.act === 'ask') side.innerHTML = '<span class="confirm">¿Borrar?</span><button class="btn danger small" type="button" data-act="yes">Sí, borrar</button><button class="btn small" type="button" data-act="no">No</button>';
+  else if (btn.dataset.act === 'no') renderCerts();
+  else if (btn.dataset.act === 'yes'){
+    btn.disabled = true;
+    try { await deleteCert(id); toast('Titulación borrada'); if (editing === id) closeForm(); await refreshCerts(); }
+    catch (err){ toast(explain(err), true); renderCerts(); }
   }
 });
 

@@ -92,4 +92,16 @@ input:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
 .opt-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .opt-label{font-weight:600}
 .opt-hint{font-size:.8rem;color:var(--ink-dim)}
+input[type=text],input[type=date]{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:4px;padding:10px 12px;width:100%;min-width:0;color-scheme:light dark}
+.cert-form{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-top:20px}
+.cert-form .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cert-form .wide{grid-column:1 / -1}
+.cert-form .actions{margin-top:2px}
+.cert-form .label{font-size:.85rem;color:var(--ink-dim)}
+.cert-form .seg{align-self:flex-start}
+.cert-form input[disabled]{opacity:.45}
+.seg button[aria-pressed="true"][data-status="done"]{background:var(--cyan);color:var(--on-cyan)}
+.seg button[aria-pressed="true"][data-status="planned"]{background:var(--amber);color:var(--on-amber)}
+.chip.planned{color:var(--amber);border-color:var(--amber)}
+@media (max-width:520px){.cert-form{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){.row{grid-template-columns:minmax(0,1fr)}.row-no{display:none}.row-side{justify-content:flex-start}.row-stats{grid-column:1}}

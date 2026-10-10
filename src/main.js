@@ -23,17 +23,46 @@ function coords(site){
 /* ---------- Logbook: from Supabase when it is configured, else the bundled dives.json ---------- */
 const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: true, minTemp: true, sac: true }, showDives: true };
 async function loadLogbook(){
-  if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, settings: DEFAULTS };
+  if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, certs: [], settings: DEFAULTS };
   try {
-    const { listDives } = await import('./lib/supabase.js');
-    const dives = await listDives();
-    return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, settings: DEFAULTS };
+    const { listDives, listCerts } = await import('./lib/supabase.js');
+    const [dives, certs] = await Promise.all([listDives(), listCerts().catch(() => [])]);
+    return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, certs, settings: DEFAULTS };
   } catch (err){
     console.warn('No se pudieron leer las inmersiones de Supabase; uso la copia local.', err);
-    return { dives: localDives, settings: DEFAULTS };
+    return { dives: localDives, certs: [], settings: DEFAULTS };
   }
 }
-loadLogbook().then(({ dives, settings }) => renderLogbook(dives.map(normalizeDive), settings));
+loadLogbook().then(({ dives, certs, settings }) => {
+  dives = dives.map(normalizeDive);
+  renderCerts(certs);
+  renderSites(dives);
+  renderLogbook(dives, settings);
+});
+
+/* ---------- Certifications: a short timeline, obtained first, then the ones still to come ---------- */
+function renderCerts(certs){
+  if (!certs || !certs.length){ removeSection('h-cert'); return; }
+  var month = function(iso){ return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }); };
+  document.getElementById('certs').innerHTML = certs.map(function(c){
+    var planned = c.status === 'planned';
+    var meta = [c.agency, planned ? 'Próximamente' : (c.obtained_on ? month(c.obtained_on) : ''), c.center].filter(Boolean).map(esc).join(' · ');
+    return '<li class="cert' + (planned ? ' is-planned' : '') + '"><span class="cert-dot" aria-hidden="true"></span>' +
+      '<div class="cert-txt"><span class="cert-title">' + esc(c.title) + '</span>' + (meta ? '<span class="cert-meta">' + meta + '</span>' : '') + '</div></li>';
+  }).join('');
+}
+
+/* ---------- Map of dive sites (Leaflet loads only here) ---------- */
+function renderSites(dives){
+  var located = dives.filter(function(d){ return d.site && d.site.lat != null; });
+  if (!located.length){ removeSection('h-map'); return; }
+  import('./map.js').then(function(m){
+    m.renderMap(document.getElementById('map'), dives);
+    document.getElementById('sites').innerHTML = m.groupSites(dives).map(function(s){
+      return '<li><span class="site-name">' + esc(s.name) + '</span><span class="site-n">' + s.n + '</span></li>';
+    }).join('');
+  }).catch(function(err){ console.warn('Map failed to load', err); removeSection('h-map'); });
+}
 
 /* ---------- Small graphics for each statistic on a dive card (40×40, theme colours) ---------- */
 function clamp01(v){ return Math.max(0, Math.min(1, v || 0)); }
@@ -145,17 +174,27 @@ function renderLogbook(dives, settings){
     var xt = niceTicks(xMax / 60, xStepMin).map(function(v){
       return '<text x="' + x(v * 60) + '" y="' + (H - 6) + '" text-anchor="middle" fill="var(--ink-dim)" font-size="9" font-family="var(--f-mono)">' + v + '′</text>';
     }).join('');
-    // safety stop band, 3 to 6 m
-    var band = yMax >= 6 ? '<rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--amber)" opacity=".07"/>' +
-      '<text x="' + x(xMax * .5) + '" y="' + (y(4.5) + 3) + '" text-anchor="middle" fill="var(--ink-dim)" font-size="8" font-family="var(--f-mono)">parada de seguridad</text>' : '';
+    // safety stop band, 3 to 6 m, drawn over the profile so it can always be read;
+    // its label goes where the line does not cross the band, so it never hides the dive
+    var bw = 64, half = (bw / 2) / (W - ml - mr) * xMax;
+    var crossing = function(tc){ return pts.filter(function(p){ return p[0] >= tc - half && p[0] <= tc + half && p[1] > 2 && p[1] < 7; }).length; };
+    var spot = [.5, .35, .65, .2, .8, .12, .9].map(function(f){ return xMax * f; })
+      .reduce(function(best, tc){ var n = crossing(tc); return n < best.n ? { tc: tc, n: n } : best; }, { tc: xMax * .5, n: Infinity }).tc;
+    var bx = x(spot) - bw / 2;
+    var band = yMax >= 6 ? '<g class="stop-band"><rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--amber)" opacity=".1"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(3) + '" y2="' + y(3) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".7"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(6) + '" y2="' + y(6) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".7"/>' +
+      '<rect x="' + bx + '" y="' + (y(4.5) - 6) + '" width="' + bw + '" height="12" rx="6" fill="var(--card-solid)"/>' +
+      '<text x="' + (bx + bw / 2) + '" y="' + (y(4.5) + 3) + '" text-anchor="middle" fill="var(--amber)" font-size="7.5" font-family="var(--f-mono)">parada 3–6 m</text></g>' : '';
     var gid = 'pg' + idx;
     var px = x(peak[0]), py = y(peak[1]);
     var labelLeft = px > W * 0.6;
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Perfil de profundidad: máxima ' + fmt(dv.maxDepth) + ' metros en ' + Math.round(dv.duration / 60) + ' minutos">' +
       '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--cyan)" stop-opacity=".05"/><stop offset="1" stop-color="var(--cyan)" stop-opacity=".28"/></linearGradient></defs>' +
-      band + grid + xt +
+      grid + xt +
       '<path d="' + area + '" fill="url(#' + gid + ')"/>' +
       '<path d="' + line + '" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      band +
       '<circle cx="' + px + '" cy="' + py + '" r="4" fill="var(--amber)" stroke="var(--abyss)" stroke-width="2"/>' +
       '<text x="' + (px + (labelLeft ? -8 : 8)) + '" y="' + (py + 3.5) + '" text-anchor="' + (labelLeft ? 'end' : 'start') + '" fill="var(--ink)" font-size="10" font-family="var(--f-mono)">' + fmt(dv.maxDepth) + ' m</text>' +
       '<g class="hover" visibility="hidden"><line class="hx" y1="' + mt + '" y2="' + (H - mb) + '" stroke="var(--ink-dim)" stroke-width="1" stroke-dasharray="2 3"/><circle class="hc" r="4" fill="var(--cyan)" stroke="var(--abyss)" stroke-width="2"/></g>' +

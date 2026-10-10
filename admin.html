@@ -78,6 +78,49 @@
       <ul class="list" id="logList"></ul>
       <p class="empty" id="logEmpty" hidden>Todavía no hay inmersiones guardadas. Importa la primera arriba.</p>
     </section>
+
+    <section class="card" id="certCard">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Formación</p>
+          <h2>Titulaciones</h2>
+        </div>
+        <button class="btn small" id="certAdd" type="button">Añadir</button>
+      </div>
+      <p class="sub small">Salen en la web por orden: primero las conseguidas, por fecha, y después las que tienes pendientes.</p>
+      <ul class="list" id="certList"></ul>
+      <p class="empty" id="certEmpty" hidden>Aún no hay titulaciones. Añade la primera.</p>
+      <form class="cert-form" id="certForm" hidden novalidate>
+        <div class="field wide">
+          <label for="cTitle">Titulación</label>
+          <input id="cTitle" type="text" placeholder="Rescue Diver" required>
+        </div>
+        <div class="field">
+          <label for="cAgency">Agencia</label>
+          <input id="cAgency" type="text" placeholder="PADI, SSI…" list="agencies">
+          <datalist id="agencies"><option value="PADI"><option value="SSI"><option value="PSS"><option value="CMAS"><option value="FEDAS"><option value="NAUI"></datalist>
+        </div>
+        <div class="field">
+          <label for="cCenter">Centro</label>
+          <input id="cCenter" type="text" placeholder="Opcional">
+        </div>
+        <div class="field">
+          <span class="label">Estado</span>
+          <div class="seg" role="group" aria-label="Estado">
+            <button type="button" data-status="done" aria-pressed="true">Conseguida</button>
+            <button type="button" data-status="planned" aria-pressed="false">Pendiente</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cDate">Fecha</label>
+          <input id="cDate" type="date">
+        </div>
+        <div class="actions wide">
+          <button class="btn primary" id="certSave" type="submit">Guardar</button>
+          <button class="btn ghost" id="certCancel" type="button">Cancelar</button>
+        </div>
+      </form>
+    </section>
   </div>
 </main>
 

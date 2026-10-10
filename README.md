@@ -13,7 +13,7 @@ npm run preview   # sirve dist/ en local
 
 ## Panel privado (/admin)
 
-Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web y elegir en qué estadísticas cuenta cada una (por ejemplo, sacar del SAC una inmersión de prácticas). Lo que se apaga en una inmersión tampoco aparece en su ficha. Las que ya están se saltan, por id o por hora de inicio.
+Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web y elegir en qué estadísticas cuenta cada una (por ejemplo, sacar del SAC una inmersión de prácticas). Lo que se apaga en una inmersión tampoco aparece en su ficha. Las que ya están se saltan, por id o por hora de inicio. En el mismo panel se gestionan las titulaciones (conseguidas y pendientes), que salen en la sección «Formación». El mapa de «Dónde he buceado» se dibuja solo con las coordenadas de cada inmersión.
 
 Configuración, una sola vez:
 
@@ -21,7 +21,7 @@ Configuración, una sola vez:
 2. En **SQL Editor**, ejecuta `supabase/schema.sql`.
 3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
 4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
-5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web).
+5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web) y `supabase/migrations/003_formacion.sql` (titulaciones).
 6. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
 7. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
 
@@ -35,16 +35,17 @@ npm run import -- ~/Downloads/ProDive_16_2026-09-13_1010.uddf
 
 ```
 index.html          contenido de la página y el selector día/noche
-src/main.js         estadísticas, perfiles de inmersión, profundímetro y scroll
+src/main.js         estadísticas, titulaciones, perfiles de inmersión, profundímetro y scroll
+src/map.js          mapa de sitios de buceo (Leaflet, teselas de CARTO)
 src/scene.js        escena 3D con three.js (cielo, mar, arrecife, fauna, linterna)
 src/diver.js        animación del submarinista: solo aletean las piernas, cuerpo y manos quietos
 src/styles.css      estilos y temas día/noche
 src/data/dives.json bitácora: las inmersiones importadas
 src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
 src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
-src/lib/supabase.js cliente de Supabase: leer, añadir y borrar inmersiones
-admin.html, src/admin.*  panel privado: login, importar y borrar
-supabase/schema.sql tablas y reglas de acceso
+src/lib/supabase.js cliente de Supabase: inmersiones y titulaciones
+admin.html, src/admin.*  panel privado: login, inmersiones y titulaciones
+supabase/schema.sql tablas y reglas de acceso (y migrations/ con los cambios posteriores)
 scripts/            importador de inmersiones y conversor del modelo a low poly
 public/models/      submarinista y máscara nomai (GLB)
 ```
