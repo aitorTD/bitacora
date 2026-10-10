@@ -139,7 +139,7 @@ p{margin:0}
   .rec-date{display:block}
   .rec-date i{display:none}
 }
-.dive-notes{margin:0;font-size:.92rem;color:var(--ink-dim);font-style:italic}
+.dive-notes{white-space:pre-line;margin:0;font-size:.92rem;color:var(--ink-dim);font-style:italic}
 .dive-notes::before{content:"“";color:var(--amber);margin-right:2px}
 .dive-notes::after{content:"”";color:var(--amber);margin-left:1px}
 .dive[hidden]{display:none}

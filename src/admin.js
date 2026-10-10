@@ -140,7 +140,7 @@ const notesEditor = d => `<div class="notes-edit">
 async function saveNotes(li){
   const d = saved.find(x => x.id === li.dataset.id); if (!d) return;
   const ta = li.querySelector('.notes-edit textarea'), btn = li.querySelector('[data-act="notes-save"]');
-  const notes = ta.value.trim();
+  const notes = ta.value.replace(/\r\n?/g, '\n').trim().replace(/\n{3,}/g, '\n\n'); // keeps line breaks, at most one blank line
   if (notes === (d.notes || '')){ notesOpen = null; renderSaved(); return; }
   btn.disabled = true; ta.disabled = true; btn.textContent = 'Guardando…';
   try {
