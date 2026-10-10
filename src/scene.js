@@ -194,43 +194,6 @@ export function initScene(dive){
     diverRig = rig; diverModel.add(rig.mesh);
   }).catch(err => console.warn('Diver model failed to load', err));
 
-  // torch lives in world space and follows the diver's hand every frame
-  const amberMat = new THREE.MeshStandardMaterial({color:'#e59a1c', roughness:.45, metalness:.2});
-  const torchBodyMat = new THREE.MeshStandardMaterial({color:'#1b2226', roughness:.45, metalness:.3});
-  const lieZ = g => { g.rotateX(Math.PI / 2); return g; };
-  const torch = new THREE.Group(); scene.add(torch);
-  const torchBody = new THREE.Group(); torchBody.scale.setScalar(.72); torch.add(torchBody);
-  torchBody.add(new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.045, .04, .24, 12)), torchBodyMat));
-  const lensMat = new THREE.MeshStandardMaterial({color:'#2a2a24', emissive:'#ffe9c4', emissiveIntensity:0, roughness:.2});
-  const lens = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.05, .05, .02, 14)), lensMat); lens.position.z = -.13; torchBody.add(lens);
-  const ring = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.052, .052, .03, 14)), amberMat); ring.position.z = -.1; torchBody.add(ring);
-  // light scattered back from the beam: softly lights the diver's hand, mask and tank
-  const torchSpill = new THREE.PointLight(0xffe2b8, 0, 3.2, 1.6); torchSpill.position.set(0, .25, -.5); torch.add(torchSpill);
-
-  // torch light + visible beam
-  const spot = new THREE.SpotLight(0xffeccc, 0, 34, .4, .45, 1.05);
-  torch.add(spot);
-  const spotTarget = new THREE.Object3D(); spotTarget.position.set(0, 0, -6); torch.add(spotTarget);
-  spot.target = spotTarget;
-  const beamLen = 8;
-  const beamGeo = new THREE.ConeGeometry(1.7, beamLen, 64, 1, true); beamGeo.rotateX(Math.PI / 2); beamGeo.translate(0, 0, -beamLen / 2);
-  const beamMat = new THREE.ShaderMaterial({
-    uniforms:{uOpacity:{value:0}, uLen:{value:beamLen}},
-    vertexShader:`varying float vD; varying vec3 vN; varying vec3 vV; uniform float uLen;
-      void main(){ vD = -position.z/uLen; vec4 mv = modelViewMatrix*vec4(position,1.); vV = -mv.xyz; vN = normalMatrix*normal; gl_Position = projectionMatrix*mv; }`,
-    fragmentShader:`varying float vD; varying vec3 vN; varying vec3 vV; uniform float uOpacity;
-      void main(){ float f = abs(dot(normalize(vN), normalize(vV))); float a = pow(f,1.5)*pow(1.-smoothstep(.0,1.,vD),1.25)*smoothstep(0.,.05,vD); gl_FragColor = vec4(vec3(1.,.93,.8), a*uOpacity*.24); }`,
-    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide
-  });
-  const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.z = -.1; torch.add(beam);
-  // inner hot core of the beam
-  const coreGeo = new THREE.ConeGeometry(.55, beamLen * .7, 48, 1, true); coreGeo.rotateX(Math.PI / 2); coreGeo.translate(0, 0, -beamLen * .35);
-  const coreMat = beamMat.clone(); coreMat.uniforms = THREE.UniformsUtils.clone(beamMat.uniforms); coreMat.uniforms.uLen.value = beamLen * .7;
-  const beamCore = new THREE.Mesh(coreGeo, coreMat); beamCore.position.z = -.1; torch.add(beamCore);
-  const glareMat = new THREE.SpriteMaterial({color:0xfff0d6, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending,
-    map:(() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.25,'rgba(255,240,210,.55)'); gr.addColorStop(1,'rgba(255,230,190,0)'); g.fillStyle = gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); })()});
-  const glare = new THREE.Sprite(glareMat); glare.scale.setScalar(.36); glare.position.z = -.11; torch.add(glare);
-
   /* ---------- Bubbles ---------- */
   const BUB = 70;
   const bubMat = new THREE.MeshStandardMaterial({color:'#dff6ff', roughness:.05, metalness:0, transparent:true, opacity:.55, emissive:'#8fd6ee', emissiveIntensity:.25});
@@ -612,12 +575,11 @@ export function initScene(dive){
   });
 
   const clock = new THREE.Clock();
-  let t = 0, torchLevel = 0, torchTarget = 0, flickerT = -1, lastTorch = false, firstFrame = true;
-  const tmpV = new THREE.Vector3(), handWorld = new THREE.Vector3(), aimPt = new THREE.Vector3(), aimGoal = new THREE.Vector3(), aimDir = new THREE.Vector3();
-  const qModel = new THREE.Quaternion();
-  const swim = { prevD:null, vel:0, phase:0, breath:0, aimInit:false, aimOff:new THREE.Vector3(),
+  let t = 0, firstFrame = true;
+  const tmpV = new THREE.Vector3();
+  const swim = { prevD:null, vel:0, phase:0, breath:0,
     effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.16, v:0}, lead:{x:0, v:0} };
-  const swimPose = { phase:0, amp:0, effort:0, pitch:0, aim:new THREE.Vector3(0, 0, -1) };
+  const swimPose = { phase:0, amp:0, effort:0, pitch:0 };
 
   function frame(){
     const dt = Math.min(clock.getDelta(), .1);
@@ -705,42 +667,10 @@ export function initScene(dive){
     diverPitch.rotation.x = pitch + Math.sin(ph * 2 + .8) * .025 * amp;
     diverRoll.rotation.z = Math.sin(ph + .5) * .04 * amp + Math.sin(t * .4) * .02;
 
-    torch.visible = !!diverRig;
     if (diverRig){
-      diverRoot.updateMatrixWorld(true);
-      diverRig.hand.getWorldPosition(handWorld);
-      // where the light should go: ahead and down, tipping with the body; eased so the beam sweeps, never snaps
-      // eased relative to the diver, so the beam never trails behind a fast descent
-      aimGoal.set(5.5 + Math.sin(t * .3) * .5, -2.3 + pitch * 2.4 + Math.sin(t * .4) * .3, -3.5);
-      if (!swim.aimInit){ swim.aimOff.copy(aimGoal); swim.aimInit = true; }
-      swim.aimOff.lerp(aimGoal, 1 - Math.exp(-dt * 2.2));
-      aimPt.copy(diverRoot.position).add(swim.aimOff); aimPt.z = swim.aimOff.z;
-      aimDir.copy(aimPt).sub(handWorld).normalize();
-      diverModel.getWorldQuaternion(qModel);
-      swimPose.aim.copy(aimDir).applyQuaternion(qModel.invert());
       swimPose.phase = ph; swimPose.amp = amp; swimPose.effort = effort; swimPose.pitch = pitch;
       poseDiver(diverRig.skeleton, swimPose);
-      diverRoot.updateMatrixWorld(true);
-      diverRig.hand.getWorldPosition(handWorld);
-      torch.position.copy(handWorld);
-      torch.lookAt(tmpV.copy(handWorld).multiplyScalar(2).sub(aimPt));   // torch looks down its -z axis
     }
-
-    // torch: switch on with a short flicker
-    if (dive.torch !== lastTorch){ lastTorch = dive.torch; if (dive.torch) flickerT = 0; else { flickerT = -1; torchTarget = 0; } }
-    if (flickerT >= 0){
-      flickerT += dive.reduce ? 1 : dt;
-      const ft = flickerT;
-      torchTarget = ft < .08 ? 1 : ft < .16 ? .1 : ft < .26 ? .9 : ft < .3 ? .3 : 1;
-      if (ft > .35) flickerT = -1;
-    }
-    torchLevel = (flickerT >= 0 || dive.reduce) ? torchTarget : torchLevel + (torchTarget - torchLevel) * .2;
-    spot.intensity = torchLevel * 90;
-    beamMat.uniforms.uOpacity.value = torchLevel;
-    coreMat.uniforms.uOpacity.value = torchLevel * .9;
-    glareMat.opacity = torchLevel * .85;
-    torchSpill.intensity = torchLevel * 2.2;
-    lensMat.emissiveIntensity = torchLevel * 2.2;
 
     // bubbles
     if (diverRig) diverRig.mouth.getWorldPosition(regWorld); else regWorld.set(0, -999, 0);

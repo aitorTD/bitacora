@@ -137,7 +137,7 @@ var gScale = document.getElementById('gScale');
 [0, 10, 20, 30, 40].forEach(function(v){
   var t = document.createElement('div'); t.className = 'g-tick'; t.style.top = (v / MAXD * 100) + '%'; t.textContent = v; gScale.appendChild(t);
 });
-var gDepth = document.getElementById('gDepth'), gMark = document.getElementById('gMark'), gTemp = document.getElementById('gTemp'), gTorch = document.getElementById('gTorch'), gStop = document.getElementById('gStop');
+var gDepth = document.getElementById('gDepth'), gMark = document.getElementById('gMark'), gTemp = document.getElementById('gTemp'), gPres = document.getElementById('gPres'), gStop = document.getElementById('gStop');
 
 var anchors = [];
 function computeAnchors(){
@@ -165,7 +165,7 @@ function depthAt(sy){
 }
 function tempAt(d){ return d < 8 ? 21.5 - d * 0.12 : d < 22 ? 20.54 - (d - 8) * 0.36 : 15.5 - (d - 22) * 0.07; }
 
-var dive = {depth:0, target:0, torch:false, reduce:reduce, night:false};
+var dive = {depth:0, target:0, reduce:reduce, night:false};
 var root = document.documentElement, modeBtns = document.querySelectorAll('.mode button');
 function setMode(m, save){
   root.setAttribute('data-dive', m);
@@ -179,7 +179,7 @@ new MutationObserver(function(){
   var th = root.getAttribute('data-theme');
   if (th === 'light' || th === 'dark') setMode(th === 'light' ? 'day' : 'night', true);
 }).observe(root, {attributes:true, attributeFilter:['data-theme']});
-var maxReached = 0, lastShown = -1, lastTorch = null, lastStop = null;
+var maxReached = 0, lastShown = -1, lastStop = null;
 
 computeAnchors();
 dive.depth = dive.target = depthAt(scrollY);
@@ -202,7 +202,6 @@ function tick(now){
     if (Math.abs(dive.target - dive.depth) < 0.002 && Math.abs(depthVel) < 0.01) { dive.depth = dive.target; depthVel = 0; }
   }
   var d = dive.depth;
-  if (dive.night || d > 27) dive.torch = true; else if (d < 25) dive.torch = false;
   if (d > maxReached) maxReached = d;
   if (d < 1) maxReached = 0;
   var stop = maxReached > 15 && d > 3 && d < 6.5 && d <= prev + 1e-4;
@@ -212,8 +211,8 @@ function tick(now){
     gDepth.textContent = fmt(shown / 10);
     gMark.style.top = (Math.max(0, d) / MAXD * 100) + '%';
     gTemp.textContent = Math.round(tempAt(Math.max(0, d))) + ' °C';
+    gPres.textContent = fmt(Math.max(0, d) / 10 + 1) + ' bar';   // absolute pressure: 1 bar of air plus 1 bar every 10 m of water
   }
-  if (dive.torch !== lastTorch){ lastTorch = dive.torch; gTorch.textContent = dive.torch ? 'ON' : 'OFF'; gTorch.className = dive.torch ? 'on' : ''; }
   if (stop !== lastStop){ lastStop = stop; gStop.hidden = !stop; }
   requestAnimationFrame(tick);
 }
