@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aitor bajo el agua</title>
+<meta name="description" content="Bitácora de buceo de Aitor Trillo: inmersiones, perfiles de profundidad y estadísticas.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@75..150,300..900&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<script>
+(function(){
+  var r = document.documentElement, m = null;
+  try { m = localStorage.getItem('dive-mode'); } catch (e) {}
+  if (m !== 'day' && m !== 'night'){
+    var th = r.getAttribute('data-theme');
+    m = th === 'light' ? 'day' : th === 'dark' ? 'night' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day');
+  }
+  r.setAttribute('data-dive', m);
+})();
+</script>
+</head>
+<body>
+<div class="water-fallback" aria-hidden="true"></div>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+
+<div class="mode" role="group" aria-label="Tipo de inmersión">
+  <button type="button" data-mode="day" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Día</button>
+  <button type="button" data-mode="night" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>Noche</button>
+</div>
+
+<aside class="gauge" aria-label="Profundidad actual">
+  <div>
+    <div class="g-label">PROFUNDIDAD</div>
+    <div class="g-depth"><span id="gDepth">0,0</span><small>m</small></div>
+  </div>
+  <div class="g-scale" id="gScale"><div class="g-mark" id="gMark"></div></div>
+  <div class="g-rows">
+    <div class="g-row"><span>AGUA</span><b id="gTemp">21 °C</b></div>
+    <div class="g-row"><span>FOCO</span><b id="gTorch">OFF</b></div>
+  </div>
+  <div class="g-stop" id="gStop" hidden>PARADA 3 MIN A 5 M</div>
+</aside>
+
+<main>
+  <section class="log" data-depth="-2.6" aria-labelledby="h-hero">
+    <p class="eyebrow">Superficie · 0 m</p>
+    <h1 id="h-hero">Aitor<br>Trillo</h1>
+    <p class="lede">Submarinista. Aquí registro mis inmersiones, grabadas con Pro Dive en el Apple Watch, y lo que me voy encontrando ahí abajo.</p>
+    <p class="cue">Desliza para descender <span aria-hidden="true">↓</span></p>
+  </section>
+
+  <section class="log panel" data-depth="10" aria-labelledby="h-stats">
+    <p class="eyebrow">−10 m · Bitácora</p>
+    <h2 id="h-stats">Mi bitácora en cifras</h2>
+    <p class="sub">Todo lo que llevo bajo el agua, sumado inmersión a inmersión.</p>
+    <div class="stats" id="stats"></div>
+    <p class="sample-note">Datos de ejemplo · se sustituyen al importar tus inmersiones</p>
+  </section>
+
+  <section class="log panel" data-depth="20" aria-labelledby="h-dives">
+    <p class="eyebrow">−20 m · Últimas inmersiones</p>
+    <h2 id="h-dives">Perfiles de inmersión</h2>
+    <p class="sub">Cada gráfico es el perfil real que guarda el reloj: bajada, fondo, ascenso y parada de seguridad. Pasa el dedo o el ratón por encima para ver cada minuto.</p>
+    <div class="dives" id="dives"></div>
+    <p class="sample-note">Inmersiones de ejemplo</p>
+  </section>
+
+  <section class="log panel" data-depth="30" aria-labelledby="h-rec">
+    <p class="eyebrow">−30 m · Récords</p>
+    <h2 id="h-rec">Mis marcas</h2>
+    <p class="sub">A partir de unos 10 m el rojo desaparece. A esta profundidad las gorgonias se ven grises hasta que la linterna les devuelve el color.</p>
+    <div class="records" id="records"></div>
+  </section>
+
+  <section class="log panel" data-depth="40" aria-labelledby="h-end">
+    <p class="eyebrow">−40 m · Fondo</p>
+    <h2 id="h-end">Hasta aquí por hoy</h2>
+    <p class="sub">Aquí abajo solo brilla lo que tiene luz propia. Sube despacio: máximo 9 metros por minuto y parada de seguridad a 5 m.</p>
+    <div class="actions">
+      <button class="btn primary" id="ascend" type="button">Volver a la superficie</button>
+      <button class="btn" type="button" disabled>Importar inmersiones</button>
+    </div>
+    <p class="small-note">La importación desde Pro Dive llegará con el panel privado.</p>
+  </section>
+</main>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
