@@ -279,6 +279,9 @@ $('certList').addEventListener('click', async e => {
 });
 
 /* ---------- import ---------- */
+// iOS greys out files whose extension it does not know (.uddf), so phones get no filter: the parser checks anyway
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) $('files').removeAttribute('accept');
+
 async function readFiles(files){
   const found = [];
   for (const f of files){

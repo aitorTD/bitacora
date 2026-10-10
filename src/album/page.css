@@ -3,8 +3,8 @@
 body{min-height:100vh;background:radial-gradient(120% 70% at 75% -10%,var(--w1),var(--abyss) 55%,var(--w3)) fixed}
 :root[data-dive="day"] body{background:radial-gradient(120% 70% at 75% -10%,#2fa6b6,#0b4a68 45%,#04192b) fixed}
 :root[data-dive="day"]{--ink:#eaf7f8;--ink-dim:#a9cfd6;--line:rgba(190,235,242,.24);--panel:rgba(4,30,46,.42);--card-solid:#0a3550;--amber:#ffb347;--on-amber:#1b1203;--cyan:#7fe3ee;--on-cyan:#021018;--land:rgba(95,214,228,.08);--coast:rgba(160,230,240,.45);color-scheme:dark}
-.top{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,5vw,56px);background:linear-gradient(var(--abyss),transparent)}
-:root[data-dive="day"] .top{background:linear-gradient(#0d4f6c,transparent)}
+.top{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,5vw,56px);background:linear-gradient(var(--abyss) 62%,transparent)}
+:root[data-dive="day"] .top{background:linear-gradient(#0d4f6c 62%,transparent)}
 .back{font-family:var(--f-mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);text-decoration:none;padding:8px 0}
 .back:hover{color:var(--amber)}
 .back:focus-visible{outline:2px solid var(--amber);outline-offset:3px}

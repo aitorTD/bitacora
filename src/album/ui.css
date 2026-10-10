@@ -106,6 +106,7 @@
 @media (max-width:760px){
   .album-viewer[open]{grid-template-columns:minmax(0,1fr)}
   .v-stage{min-height:280px}
+  .v-close{position:fixed;z-index:2;top:calc(env(safe-area-inset-top,0px) + 22px);right:22px;width:38px;height:38px;background:color-mix(in srgb,var(--card-solid) 85%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
   .album-ui .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 }
 @media (prefers-reduced-motion:reduce){.album-ui .card{transition:none}.album-ui .card.is-seen[data-r="4"]{animation:none}.album-ui .bar span{transition:none}}

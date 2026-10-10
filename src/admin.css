@@ -3,7 +3,7 @@
 /* Layout: a single working column on the abyss colour; cards hold each task. */
 body{min-height:100vh;background:linear-gradient(180deg,var(--w1),var(--abyss) 40%)}
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px clamp(16px,4vw,40px);background:var(--hud);border-bottom:1px solid var(--line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.brand{font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 118;font-size:1.25rem;color:var(--ink);text-decoration:none}
+.brand{white-space:nowrap;font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 118;font-size:1.25rem;color:var(--ink);text-decoration:none}
 .brand span{color:var(--ink-dim);font-weight:500}
 .bar-right{display:flex;align-items:center;gap:12px;min-width:0}
 .who{font-family:var(--f-mono);font-size:.75rem;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -35,7 +35,7 @@ h1{font-size:clamp(1.8rem,5vw,2.4rem)}
 h2{font-size:1.5rem}
 .sub{color:var(--ink-dim);margin:0 0 18px;max-width:38rem}
 code{font-family:var(--f-mono);font-size:.85em;color:var(--ink)}
-.count{font-family:var(--f-mono);font-size:.8rem;color:var(--ink-dim)}
+.count{font-family:var(--f-mono);font-size:.8rem;color:var(--ink-dim);white-space:nowrap}
 
 form{display:flex;flex-direction:column;gap:8px}
 label{font-size:.85rem;color:var(--ink-dim)}
@@ -127,3 +127,6 @@ input[type=text],input[type=date],input[type=search]{font:inherit;color:var(--in
 .restore-confirm .sub.small{margin-top:6px}
 .restore-confirm .actions{margin-top:12px}
 label.btn{cursor:pointer}
+@media (max-width:520px){.who{display:none}.bar{padding-block:10px}.card-head h2{font-size:1.35rem}}
+.on-touch{display:none}
+@media (hover:none) and (pointer:coarse){.on-fine{display:none}.on-touch{display:inline}}

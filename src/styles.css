@@ -80,6 +80,12 @@ p{margin:0}
   .album-cta-count b{font-size:1.4rem}
   .album-cta-arrow{display:none}
 }
+@media (max-width:380px){
+  .album-cta-title{font-size:1rem}
+  .album-cta-count b{font-size:1.2rem}
+  .album-cta-ico{width:34px;height:34px}
+  .album-cta-ico svg{width:18px;height:18px}
+}
 @media (prefers-reduced-motion:reduce){.device-stage::before{animation:none}.album-cta-bar i{transition:none}}
 
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 16px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
@@ -125,6 +131,14 @@ p{margin:0}
 .dstat-lbl{margin-top:3px;font-family:var(--f-mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
 .dstat-sub{font-size:.74rem;color:var(--ink-dim);margin-top:1px}
 .no-profile{margin:0;padding:14px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;color:var(--ink-dim)}
+@media (max-width:520px){
+  .dstats{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 10px}
+  .dstat{grid-template-columns:32px minmax(0,1fr);gap:8px}
+  .dstat-g{width:32px;height:32px}
+  .dstat-lbl{letter-spacing:.05em}
+  .rec-date{display:block}
+  .rec-date i{display:none}
+}
 .dive-notes{margin:0;font-size:.92rem;color:var(--ink-dim);font-style:italic}
 .dive-notes::before{content:"“";color:var(--amber);margin-right:2px}
 .dive-notes::after{content:"”";color:var(--amber);margin-left:1px}
@@ -166,6 +180,8 @@ p{margin:0}
 .record{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--line)}
 .record span{color:var(--ink-dim);font-size:.9rem}
 .record span strong{display:block;color:var(--ink);font-weight:600;font-size:1rem}
+.rec-date{white-space:nowrap}
+.rec-date i{font-style:normal}
 .record b{font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 120;font-size:clamp(2rem,6vw,3rem);line-height:1;font-variant-numeric:tabular-nums;color:var(--amber)}
 .record b small{font-size:.45em;margin-left:3px;font-weight:500}
 

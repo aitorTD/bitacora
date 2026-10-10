@@ -144,7 +144,7 @@ function renderLogbook(dives, settings){
     if (!tiles.length) removeSection('h-stats');
     if (!rec.length) removeSection('h-rec');
     document.getElementById('records').innerHTML = rec.map(function(r){
-      return '<div class="record"><span><strong>' + r[0] + '</strong>' + esc(r[1].site.name) + ' · ' + dateLabel(r[1].start) + '</span><b>' + r[2] + '<small>' + r[3] + '</small></b></div>';
+      return '<div class="record"><span><strong>' + r[0] + '</strong>' + esc(r[1].site.name) + '<span class="rec-date"><i> · </i>' + dateLabel(r[1].start) + '</span></span><b>' + r[2] + '<small>' + r[3] + '</small></b></div>';
     }).join('');
   } else {
     statsEl.outerHTML = '<p class="empty">Todavía no hay inmersiones importadas.</p>';
