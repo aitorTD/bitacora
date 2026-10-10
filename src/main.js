@@ -159,11 +159,19 @@ addEventListener('load', computeAnchors);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(computeAnchors);
 if ('ResizeObserver' in window) new ResizeObserver(computeAnchors).observe(document.querySelector('main'));
 
-function tick(){
+// Depth follows the scroll through a critically damped spring: position and speed
+// both stay continuous, so the diver never jerks when you start or stop scrolling.
+var depthVel = 0, lastT = performance.now();
+function tick(now){
+  var dt = Math.min(0.1, Math.max(0, ((now || performance.now()) - lastT) / 1000)); lastT = now || performance.now();
   dive.target = depthAt(scrollY);
   var prev = dive.depth;
-  dive.depth = reduce ? dive.target : dive.depth + (dive.target - dive.depth) * 0.08;
-  if (Math.abs(dive.target - dive.depth) < 0.005) dive.depth = dive.target;
+  if (reduce) { dive.depth = dive.target; depthVel = 0; }
+  else {
+    var w = 3.4, steps = Math.max(1, Math.ceil(dt * 120)), h = dt / steps;
+    for (var i = 0; i < steps; i++){ depthVel += (w * w * (dive.target - dive.depth) - 2 * w * depthVel) * h; dive.depth += depthVel * h; }
+    if (Math.abs(dive.target - dive.depth) < 0.002 && Math.abs(depthVel) < 0.01) { dive.depth = dive.target; depthVel = 0; }
+  }
   var d = dive.depth;
   if (dive.night || d > 27) dive.torch = true; else if (d < 25) dive.torch = false;
   if (d > maxReached) maxReached = d;

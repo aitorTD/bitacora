@@ -107,6 +107,9 @@ p{margin:0}
 .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn[disabled]{opacity:.55;cursor:not-allowed}
+.credits{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);font-size:.74rem;color:var(--ink-dim)}
+.credits a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.credits a:hover{color:var(--ink)}
 .small-note{margin-top:12px;font-size:.8rem;color:var(--ink-dim)}
 
 /* Dive-computer gauge */

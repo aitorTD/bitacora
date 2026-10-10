@@ -4,6 +4,9 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { loadDiver, poseDiver, spring } from './diver.js';
+
+const MODEL_URL = `${import.meta.env.BASE_URL}models/diver.glb`;
 
 export function initScene(dive){
   const canvas = document.getElementById('scene');
@@ -176,52 +179,31 @@ export function initScene(dive){
   }
 
   /* ---------- Diver ---------- */
-  const suit = new THREE.MeshStandardMaterial({color:'#1e262a', roughness:.5, metalness:.08});
-  const bcd = new THREE.MeshStandardMaterial({color:'#262d31', roughness:.7, metalness:.05});
+  // rig: root (position, heading) > pitch > roll > model (lying along -z, back up)
+  const diverRoot = new THREE.Group(), diverPitch = new THREE.Group(), diverRoll = new THREE.Group(), diverModel = new THREE.Group();
+  diverRoot.add(diverPitch); diverPitch.add(diverRoll); diverRoll.add(diverModel);
+  diverModel.rotation.x = -Math.PI / 2;   // the file stands upright; lay it head-first along -z
+  diverModel.scale.setScalar(2.55);
+  diverRoot.rotation.y = -1.95;
+  scene.add(diverRoot);
+  let diverRig = null;
+  const diverAddCaustics = mat => addCaustics(mat);
+  loadDiver(MODEL_URL, { decorate: diverAddCaustics }).then(rig => {
+    diverRig = rig; diverModel.add(rig.mesh);
+  }).catch(err => console.warn('Diver model failed to load', err));
+
+  // torch lives in world space and follows the diver's hand every frame
   const amberMat = new THREE.MeshStandardMaterial({color:'#e59a1c', roughness:.45, metalness:.2});
-  const tankMat = new THREE.MeshStandardMaterial({color:'#c8cfd2', roughness:.3, metalness:.75});
-  const glass = new THREE.MeshStandardMaterial({color:'#0e1c22', roughness:.08, metalness:.9});
-  const finMat = new THREE.MeshStandardMaterial({color:'#123f4a', roughness:.45, metalness:.1, side:THREE.DoubleSide});
-
-  const diver = new THREE.Group();
+  const torchBodyMat = new THREE.MeshStandardMaterial({color:'#1b2226', roughness:.45, metalness:.3});
   const lieZ = g => { g.rotateX(Math.PI / 2); return g; };
-  diver.add(new THREE.Mesh(lieZ(new THREE.CapsuleGeometry(.21, .72, 6, 14)), suit));
-  const jacket = new THREE.Mesh(lieZ(new THREE.CapsuleGeometry(.235, .36, 6, 14)), bcd); jacket.position.set(0, .01, -.16); diver.add(jacket);
-  const stripe = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.24, .24, .05, 18)), amberMat); stripe.position.set(0, 0, .1); diver.add(stripe);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.15, 18, 14), suit); head.position.set(0, .05, -.66); diver.add(head);
-  const mask = new THREE.Mesh(new THREE.BoxGeometry(.21, .1, .07), glass); mask.position.set(0, .01, -.79); mask.rotation.x = .35; diver.add(mask);
-  const strap = new THREE.Mesh(new THREE.TorusGeometry(.152, .012, 6, 24), suit); strap.position.set(0, .04, -.67); strap.rotation.y = Math.PI / 2; diver.add(strap);
-  const reg = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.035, .04, .06, 10)), amberMat); reg.position.set(0, -.09, -.78); diver.add(reg);
-  const tank = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.11, .11, .72, 18)), tankMat); tank.position.set(0, .29, .04); diver.add(tank);
-  const tankTop = new THREE.Mesh(new THREE.SphereGeometry(.11, 14, 10), tankMat); tankTop.position.set(0, .29, -.32); diver.add(tankTop);
-  const valve = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.03, .03, .1, 8)), suit); valve.position.set(0, .29, -.45); diver.add(valve);
-  const hose = new THREE.Mesh(new THREE.TorusGeometry(.2, .012, 6, 20, Math.PI * .9), suit); hose.position.set(.05, .1, -.6); hose.rotation.set(0, Math.PI / 2, -.6); diver.add(hose);
-
-  function limb(len, r){ const g = new THREE.CapsuleGeometry(r, len, 4, 10); g.rotateX(Math.PI / 2); g.translate(0, 0, -(len / 2 + r)); return g; }
-  const armR = new THREE.Group(); armR.position.set(.24, -.02, -.36); diver.add(armR);
-  armR.add(new THREE.Mesh(limb(.5, .06), suit));
-  armR.rotation.set(-.18, -.22, 0);
-  const torch = new THREE.Group(); torch.position.set(0, 0, -.68); armR.add(torch);
-  torch.add(new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.045, .04, .24, 12)), suit));
+  const torch = new THREE.Group(); scene.add(torch);
+  const torchBody = new THREE.Group(); torchBody.scale.setScalar(.72); torch.add(torchBody);
+  torchBody.add(new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.045, .04, .24, 12)), torchBodyMat));
   const lensMat = new THREE.MeshStandardMaterial({color:'#2a2a24', emissive:'#ffe9c4', emissiveIntensity:0, roughness:.2});
-  const lens = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.05, .05, .02, 14)), lensMat); lens.position.z = -.13; torch.add(lens);
-  const ring = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.052, .052, .03, 14)), amberMat); ring.position.z = -.1; torch.add(ring);
-  const armL = new THREE.Group(); armL.position.set(-.24, -.04, -.34); diver.add(armL);
-  armL.add(new THREE.Mesh(limb(.48, .06), suit));
-  armL.rotation.set(.5, Math.PI * .92, .1);
-  function leg(x){
-    const g = new THREE.Group(); g.position.set(x, -.02, .42);
-    const l = new THREE.Mesh(limb(.7, .075), suit); l.rotation.y = Math.PI; g.add(l);
-    const finPivot = new THREE.Group(); finPivot.position.z = .9; g.add(finPivot);
-    const fg = new THREE.BufferGeometry();
-    fg.setAttribute('position', new THREE.Float32BufferAttribute([-.075,0,0, .075,0,0, .12,0,.42, -.12,0,.42], 3));
-    fg.setIndex([0,1,2, 0,2,3]); fg.computeVertexNormals();
-    finPivot.add(new THREE.Mesh(fg, finMat));
-    diver.add(g);
-    return {g, finPivot};
-  }
-  const legL = leg(-.11), legR = leg(.11);
-  scene.add(diver);
+  const lens = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.05, .05, .02, 14)), lensMat); lens.position.z = -.13; torchBody.add(lens);
+  const ring = new THREE.Mesh(lieZ(new THREE.CylinderGeometry(.052, .052, .03, 14)), amberMat); ring.position.z = -.1; torchBody.add(ring);
+  // light scattered back from the beam: softly lights the diver's hand, mask and tank
+  const torchSpill = new THREE.PointLight(0xffe2b8, 0, 3.2, 1.6); torchSpill.position.set(0, .25, -.5); torch.add(torchSpill);
 
   // torch light + visible beam
   const spot = new THREE.SpotLight(0xffeccc, 0, 34, .4, .45, 1.05);
@@ -238,19 +220,19 @@ export function initScene(dive){
       void main(){ float f = abs(dot(normalize(vN), normalize(vV))); float a = pow(f,1.5)*pow(1.-smoothstep(.0,1.,vD),1.25)*smoothstep(0.,.05,vD); gl_FragColor = vec4(vec3(1.,.93,.8), a*uOpacity*.24); }`,
     transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide
   });
-  const beam = new THREE.Mesh(beamGeo, beamMat); beam.rotation.x = 0; beam.position.z = -.13; torch.add(beam);
+  const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.z = -.1; torch.add(beam);
   // inner hot core of the beam
   const coreGeo = new THREE.ConeGeometry(.55, beamLen * .7, 48, 1, true); coreGeo.rotateX(Math.PI / 2); coreGeo.translate(0, 0, -beamLen * .35);
   const coreMat = beamMat.clone(); coreMat.uniforms = THREE.UniformsUtils.clone(beamMat.uniforms); coreMat.uniforms.uLen.value = beamLen * .7;
-  const beamCore = new THREE.Mesh(coreGeo, coreMat); beamCore.position.z = -.13; torch.add(beamCore);
+  const beamCore = new THREE.Mesh(coreGeo, coreMat); beamCore.position.z = -.1; torch.add(beamCore);
   const glareMat = new THREE.SpriteMaterial({color:0xfff0d6, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending,
     map:(() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.25,'rgba(255,240,210,.55)'); gr.addColorStop(1,'rgba(255,230,190,0)'); g.fillStyle = gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); })()});
-  const glare = new THREE.Sprite(glareMat); glare.scale.setScalar(.42); glare.position.z = -.15; torch.add(glare);
+  const glare = new THREE.Sprite(glareMat); glare.scale.setScalar(.36); glare.position.z = -.11; torch.add(glare);
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
   const bubMat = new THREE.MeshStandardMaterial({color:'#dff6ff', roughness:.05, metalness:0, transparent:true, opacity:.55, emissive:'#8fd6ee', emissiveIntensity:.25});
-  const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), bubMat, BUB);
+  const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), bubMat, BUB);
   bubbles.instanceMatrix.setUsage(THREE.DynamicDrawUsage); bubbles.frustumCulled = false;
   const bub = Array.from({length:BUB}, () => ({alive:false, p:new THREE.Vector3(), s:0, life:0, ph:rand() * 6}));
   scene.add(bubbles);
@@ -629,10 +611,14 @@ export function initScene(dive){
 
   const clock = new THREE.Clock();
   let t = 0, torchLevel = 0, torchTarget = 0, flickerT = -1, lastTorch = false, firstFrame = true;
-  const tmpV = new THREE.Vector3(), armWorld = new THREE.Vector3(), aimPt = new THREE.Vector3();
+  const tmpV = new THREE.Vector3(), handWorld = new THREE.Vector3(), aimPt = new THREE.Vector3(), aimGoal = new THREE.Vector3(), aimDir = new THREE.Vector3();
+  const qModel = new THREE.Quaternion();
+  const swim = { prevD:null, vel:0, phase:0, breath:0, aimInit:false, aimOff:new THREE.Vector3(),
+    effort:{x:0, v:0}, pitch:{x:-.1, v:0}, amp:{x:.16, v:0}, lead:{x:0, v:0} };
+  const swimPose = { phase:0, amp:0, effort:0, pitch:0, aim:new THREE.Vector3(0, 0, -1) };
 
   function frame(){
-    const dt = Math.min(clock.getDelta(), .05);
+    const dt = Math.min(clock.getDelta(), .1);
     const speed = dive.reduce ? 0 : 1;
     t += dt * speed;
     const dRaw = dive.depth;          // negative while still above the water
@@ -695,17 +681,45 @@ export function initScene(dive){
     bloom.radius = mix(.5, .95, Math.max(smooth(14, 34, d), n * smooth(2, 16, d)));
     bloom.threshold = mix(mix(.85 - smooth(16, 36, d) * .25, .62 - smooth(4, 30, d) * .08, n), mix(1.05, .9, n), above);
 
-    // diver: waiting under the surface until the camera comes down
-    diver.position.set(small ? -1.2 : -1.9, y + Math.sin(t * .8) * .06, 0);
-    diver.rotation.set(-.3 + Math.sin(t * .5) * .04, -1.95 + Math.sin(t * .23) * .06, Math.sin(t * .6) * .04);
-    const kick = Math.sin(t * 2.6);
-    legL.g.rotation.x = kick * .26; legR.g.rotation.x = -kick * .26;
-    legL.finPivot.rotation.x = Math.sin(t * 2.6 - .9) * .38; legR.finPivot.rotation.x = -Math.sin(t * 2.6 - .9) * .38;
-    diver.updateMatrixWorld(true);
-    armR.getWorldPosition(armWorld);
-    aimPt.set(diver.position.x + 5.5 + Math.sin(t * .3) * .5, diver.position.y - 2.3 + Math.sin(t * .4) * .3, diver.position.z - 3.5);
-    aimPt.sub(armWorld).multiplyScalar(-1).add(armWorld);
-    armR.lookAt(aimPt);
+    // diver: swim state follows the actual vertical speed, every value eased by springs
+    if (swim.prevD === null) swim.prevD = dRaw;
+    const vRaw = dt > 0 && !dive.reduce ? (dRaw - swim.prevD) / dt : 0; swim.prevD = dRaw;
+    swim.vel += (vRaw - swim.vel) * (1 - Math.exp(-dt / .15));
+    const vel = swim.vel;
+    const effort = spring(swim.effort, Math.tanh(Math.abs(vel) / 5.5), 2.4, dt);
+    const pitch = spring(swim.pitch, -.1 - .78 * Math.tanh(vel / 5.5), 2.1, dt);
+    const amp = spring(swim.amp, .16 + .84 * effort, 2.6, dt);
+    const freq = .5 + 1.4 * effort;                    // kicks per second
+    swim.phase += Math.PI * 2 * freq * dt * speed;    // phase only accumulates: no jumps when speed changes
+    const lead = spring(swim.lead, -.55 * Math.tanh(vel / 6), 1.6, dt);
+    swim.breath += dt * speed / mix(4.6, 3.0, effort);
+    const breathe = Math.sin(swim.breath * Math.PI * 2);
+    const ph = swim.phase;
+    diverRoot.position.set(small ? .75 : -.75, y + lead + Math.sin(ph * 2) * .025 * amp + breathe * .03, 0);
+    diverRoot.rotation.y = -1.95 + Math.sin(t * .23) * .05;
+    diverPitch.rotation.x = pitch + Math.sin(ph * 2 + .8) * .025 * amp;
+    diverRoll.rotation.z = Math.sin(ph + .5) * .04 * amp + Math.sin(t * .4) * .02;
+
+    torch.visible = !!diverRig;
+    if (diverRig){
+      diverRoot.updateMatrixWorld(true);
+      diverRig.hand.getWorldPosition(handWorld);
+      // where the light should go: ahead and down, tipping with the body; eased so the beam sweeps, never snaps
+      // eased relative to the diver, so the beam never trails behind a fast descent
+      aimGoal.set(5.5 + Math.sin(t * .3) * .5, -2.3 + pitch * 2.4 + Math.sin(t * .4) * .3, -3.5);
+      if (!swim.aimInit){ swim.aimOff.copy(aimGoal); swim.aimInit = true; }
+      swim.aimOff.lerp(aimGoal, 1 - Math.exp(-dt * 2.2));
+      aimPt.copy(diverRoot.position).add(swim.aimOff); aimPt.z = swim.aimOff.z;
+      aimDir.copy(aimPt).sub(handWorld).normalize();
+      diverModel.getWorldQuaternion(qModel);
+      swimPose.aim.copy(aimDir).applyQuaternion(qModel.invert());
+      swimPose.phase = ph; swimPose.amp = amp; swimPose.effort = effort; swimPose.pitch = pitch;
+      poseDiver(diverRig.skeleton, swimPose);
+      diverRoot.updateMatrixWorld(true);
+      diverRig.hand.getWorldPosition(handWorld);
+      torch.position.copy(handWorld);
+      torch.lookAt(tmpV.copy(handWorld).multiplyScalar(2).sub(aimPt));   // torch looks down its -z axis
+    }
 
     // torch: switch on with a short flicker
     if (dive.torch !== lastTorch){ lastTorch = dive.torch; if (dive.torch) flickerT = 0; else { flickerT = -1; torchTarget = 0; } }
@@ -720,15 +734,16 @@ export function initScene(dive){
     beamMat.uniforms.uOpacity.value = torchLevel;
     coreMat.uniforms.uOpacity.value = torchLevel * .9;
     glareMat.opacity = torchLevel * .85;
+    torchSpill.intensity = torchLevel * 2.2;
     lensMat.emissiveIntensity = torchLevel * 2.2;
 
     // bubbles
-    reg.getWorldPosition(regWorld);
-    const breath = (t % 4.2) < 1.3;
+    if (diverRig) diverRig.mouth.getWorldPosition(regWorld); else regWorld.set(0, -999, 0);
+    const breath = diverRig && (swim.breath % 1) < .3;
     bubTimer += dt * speed;
     if (breath && bubTimer > .06){
       bubTimer = 0;
-      for (let k = 0; k < 2; k++){ const b = bub[bubIdx]; bubIdx = (bubIdx + 1) % BUB; b.alive = true; b.p.copy(regWorld).add(tmpV.set(rr(-.04, .04), 0, rr(-.04, .04))); b.s = rr(.015, .05); b.life = 0; }
+      for (let k = 0; k < 2; k++){ const b = bub[bubIdx]; bubIdx = (bubIdx + 1) % BUB; b.alive = true; b.p.copy(regWorld).add(tmpV.set(rr(-.04, .04), 0, rr(-.04, .04))); b.s = rr(.012, .04); b.life = 0; }
     }
     for (let i = 0; i < BUB; i++){
       const b = bub[i];
@@ -791,4 +806,5 @@ export function initScene(dive){
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+  if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, rig: () => diverRig };
 }
