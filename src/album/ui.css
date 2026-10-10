@@ -97,10 +97,7 @@
 .v-map-svg .heat circle{mix-blend-mode:screen}
 :root[data-dive="day"] body:not(:has(.album-page)) .v-map-svg .heat circle{mix-blend-mode:multiply}
 .v-zones{margin:6px 0 0;font-size:.8rem;color:var(--ink-dim)}
-.v-edit{margin-top:6px;padding-top:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
-.v-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.v-fields label{display:flex;flex-direction:column;gap:5px;font-size:.8rem;color:var(--ink-dim)}
-.v-fields input{font:inherit;font-size:.92rem;color:var(--ink);background:color-mix(in srgb,var(--abyss) 20%,transparent);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-width:0}
+.v-edit{margin-top:6px;padding-top:14px;border-top:1px solid var(--line);display:flex}
 .v-actions{display:flex;gap:10px}
 .album-viewer .btn{font:600 .9rem/1 var(--f-body);padding:12px 16px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
 .album-viewer .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}

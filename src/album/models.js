@@ -60,64 +60,93 @@ function tube(points, radius, { seg = 40, radial = 7, cap = true } = {}){
   return g;
 }
 const shapeGeo = pts => { const s = new THREE.Shape(); pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y))); return new THREE.ShapeGeometry(s); };
-function eyes(x, y, z, size, { white = '#f4f1e8', pupil = '#0c0c0e', up = false } = {}){
+function eyes(x, y, z, size, { white = '#f4f1e8', pupil = '#0c0c0e', iris = null, up = false } = {}){
   const out = [];
   for (const s of [-1, 1]){
     out.push(solid(xf(new THREE.IcosahedronGeometry(size, 1), { p: [x, y, s * z] }), white));
-    const d = up ? [.01, size * .55, 0] : [size * .15, 0, s * size * .6];
-    out.push(solid(xf(new THREE.IcosahedronGeometry(size * .6, 1), { p: [x + d[0], y + d[1], s * z + d[2]] }), pupil));
+    const d = up ? [.01, size * .55, 0] : [size * .15, 0, s * size * .62];
+    if (iris) out.push(solid(xf(new THREE.IcosahedronGeometry(size * .72, 1), { p: [x + d[0] * .8, y + d[1] * .8, s * z + d[2] * .8] }), iris));
+    out.push(solid(xf(new THREE.IcosahedronGeometry(size * .55, 1), { p: [x + d[0], y + d[1], s * z + d[2]] }), pupil));
+    const g = up ? [size * .2, size * .95, size * .2] : [size * .32, size * .3, s * size * .9];
+    out.push(solid(xf(new THREE.IcosahedronGeometry(size * .2, 0), { p: [x + g[0], y + g[1], s * z + g[2]] }), '#ffffff'));
   }
   return out;
 }
 
-/* ---------- fish: an ellipsoid shaped by a side profile, plus fins, eyes and painted marks ---------- */
+/* ---------- fish: an ellipsoid shaped by a side profile, plus fins, eyes, mouth and painted marks ----------
+ * shape: h/w body height/width · c where it is tallest · headPow/tailPow how blunt the head / thin the tail
+ *        back/belly stretch the upper / lower half · snout lengthens the head · tail fork|lyre|round|truncate|shark|clavus|fluke
+ *        dorsal/dorsal2/anal [x0, x1, height, 'spiky'|'soft'|'dolphin'] · pect size (default on) · pelvic · eye size · eyeY height
+ *        mouth 'small'|'big'|'lips'|'beak'|'jaw'|'up'|'none' · teeth · barbels · tentacles · spines (on the head) · beak (dolphin rostrum)
+ * paint: top/bottom body colours, fin, finEdge (outer edge of the fins), pelvicFin/analFin overrides, marks (see species.js) */
 function fishGeometry(s, pt){
-  const h = s.h, w = s.w, c = s.c ?? .15, snout = s.snout || 0;
-  const prof = x => x >= c ? Math.pow(Math.max(0, 1 - ((x - c) / (1 - c)) ** 2), s.headPow ?? .5) : Math.pow(Math.max(0, 1 - ((c - x) / (1 + c)) ** 2), s.tailPow ?? .5);
+  const h = s.h, w = s.w, c = s.c ?? .15, snout = s.snout || 0, back = s.back ?? 1, belly = s.belly ?? 1;
+  // a real fish narrows into a slim tail stem before the caudal fin, and its head is a little pointed
+  const stem = s.stem ?? .17;
+  const prof = x => {
+    if (x >= c) return Math.pow(Math.max(0, 1 - ((x - c) / (1 - c)) ** 2), s.headPow ?? .62);
+    const t = (c - x) / (1 + c);
+    if (s.tailPow != null) return Math.pow(Math.max(0, 1 - t * t), s.tailPow);
+    // full body to mid-length, then a clear taper into the slim tail stem
+    const e = Math.sqrt(Math.max(0, 1 - t * t)), k = smooth(.42, .9, t);
+    return t > .985 ? 0 : e * (1 - k) + stem * k * (1 - smooth(.94, .985, t));
+  };
   const unstretch = x => (x > .5 ? .5 + (x - .5) / (1 + snout) : x);
-  const top = C(pt.top), bottom = C(pt.bottom), finC = C(pt.fin), marks = (pt.marks || []).map(m => m.map(v => (typeof v === 'string' && v[0] === '#' ? C(v) : v)));
+  const stretch = x => (x > .5 ? x + (x - .5) * snout : x);
+  const topAt = x => h * prof(x) * back, botAt = x => -h * prof(x) * belly;
+  const col = v => (typeof v === 'string' && v[0] === '#' ? C(v) : v);
+  const top = C(pt.top), bottom = C(pt.bottom), finC = C(pt.fin), edgeC = pt.finEdge ? C(pt.finEdge) : null;
+  const marks = (pt.marks || []).map(m => m.map(col));
   const paintBody = (x, y, z, o) => {
-    const xb = unstretch(x), pn = Math.max(prof(xb), .18), yn = y / (h * pn);
-    o.copy(bottom).lerp(top, smooth(-.35, .55, yn));
+    const xb = unstretch(x), pn = Math.max(prof(xb), .18), yn = y > 0 ? y / (h * pn * back) : y / (h * pn * belly);
+    o.copy(bottom).lerp(top, smooth(-.3, .5, yn));
     for (const m of marks){
-      if (m[0] === 'vband' && xb > m[1] && xb < m[2]) o.lerp(m[3], .92);
-      else if (m[0] === 'vbars' && xb > m[3] && xb < m[4] && frac((xb - m[3]) / (m[4] - m[3]) * m[1]) < .4) o.lerp(m[2], .8);
-      else if (m[0] === 'hstripes' && Math.abs(yn) < .85 && frac((yn + 1) / 2 * m[1]) < (m[3] ?? .2) * 1.6) o.lerp(m[2], .85);
-      else if (m[0] === 'hband' && yn > m[1] && yn < m[2]) o.lerp(m[3], .9);
-      else if (m[0] === 'spots' && hash(Math.round(x * 30), Math.round(y * 30), Math.round(z * 30)) < m[1]) o.lerp(m[2], .85);
-      else if (m[0] === 'patch' && Math.hypot((xb - m[1]) * 1.2, (yn - m[2]) * .5) < m[3]) o.lerp(m[4], .95);
+      const k = m[0];
+      if (k === 'vband' && xb > m[1] && xb < m[2]) o.lerp(m[3], .92);
+      else if (k === 'vbars' && xb > m[3] && xb < m[4] && yn > (m[5] ?? -2) && frac((xb - m[3]) / (m[4] - m[3]) * m[1]) < .42) o.lerp(m[2], .8);
+      else if (k === 'hstripes' && Math.abs(yn) < .9 && frac((yn + 1) / 2 * m[1]) < (m[3] ?? .3)) o.lerp(m[2], .85);
+      else if (k === 'hband' && yn > m[1] && yn < m[2] && xb < (m[4] ?? 2)) o.lerp(m[3], .9);
+      else if (k === 'spots' && hash(Math.round(x * (m[3] || 30)), Math.round(y * (m[3] || 30)), Math.round(z * (m[3] || 30))) < m[1]) o.lerp(m[2], .85);
+      else if (k === 'patch' && Math.hypot((xb - m[1]) * 1.2, (yn - m[2]) * .5) < m[3]) o.lerp(m[4], .95);
+      else if (k === 'zigzag' && Math.abs(yn - (m[2] ?? .05) - Math.abs(frac(xb * (m[3] ?? 3)) - .5) * .5) < (m[4] ?? .14) && xb < .55) o.lerp(m[1], .9);
+      else if (k === 'eyestripe' && Math.abs((yn - .25) - (xb - .62) * (m[2] ?? 1.6)) < (m[3] ?? .16) && xb > .2) o.lerp(m[1], .85);
+      else if (k === 'headlines' && xb > .5 && frac((yn + xb * .8) * (m[2] ?? 4)) < .25) o.lerp(m[1], .85);
+      else if (k === 'belly' && yn < m[2]) o.lerp(m[1], .85);
+      else if (k === 'back' && yn > m[2]) o.lerp(m[1], .85);
     }
     return o;
   };
   const parts = [];
-  const body = new THREE.SphereGeometry(1, s.smooth ? 26 : 18, s.smooth ? 16 : 12);
+  const body = new THREE.SphereGeometry(1, s.smooth ? 30 : 26, s.smooth ? 18 : 16);
   { const p = body.attributes.position;
     for (let i = 0; i < p.count; i++){
-      let x = p.getX(i); const r0 = Math.sqrt(Math.max(0, 1 - x * x)), k = r0 > 1e-4 ? prof(x) / r0 : 0;
-      if (s.shark && p.getY(i) < 0) p.setY(i, p.getY(i) * .75);
-      p.setY(i, p.getY(i) * k * h); p.setZ(i, p.getZ(i) * k * w);
-      if (x > .5) x += (x - .5) * snout;
-      p.setX(i, x);
+      const x = p.getX(i), r0 = Math.sqrt(Math.max(0, 1 - x * x)), k = r0 > 1e-4 ? prof(x) / r0 : 0, y = p.getY(i);
+      p.setY(i, y * k * h * (y > 0 ? back : belly)); p.setZ(i, p.getZ(i) * k * w);
+      p.setX(i, stretch(x));
     } }
   parts.push(paint(body, paintBody));
-  const finPaint = g => paint(g, (x, y, z, o) => o.copy(finC));
-  const topAt = x => h * prof(x) * .9;
-  // tail
+  // fins: own colour, a lighter or darker outer edge where the species has one
+  const finPaint = (g, color = finC, edgeFrom = null) => paint(g, (x, y, z, o) => {
+    o.copy(color);
+    if (edgeC && edgeFrom && edgeFrom(x, y)) o.copy(edgeC);
+    return o;
+  });
   const th = Math.max(.15, h * 1.15) * (s.tailH ?? 1);
   const tails = {
     fork: [[-.86, 0], [-1.5, th], [-1.32, 0], [-1.5, -th]],
-    lyre: [[-.86, 0], [-1.85, th * 1.25], [-1.3, 0], [-1.85, -th * 1.25]],
+    lyre: [[-.86, 0], [-1.9, th * 1.3], [-1.35, 0], [-1.9, -th * 1.3]],
     truncate: [[-.86, 0], [-1.38, th], [-1.44, 0], [-1.38, -th]],
     shark: [[-.86, .02], [-1.78, th * 1.15], [-1.58, .03], [-1.3, -th * .55]],
   };
-  if (tails[s.tail]) parts.push(finPaint(shapeGeo(tails[s.tail])));
-  else if (s.tail === 'round'){ const sh = new THREE.Shape(); sh.moveTo(-.86, 0); sh.lineTo(-1.2, th * .85); sh.quadraticCurveTo(-1.6, 0, -1.2, -th * .85); sh.lineTo(-.86, 0); parts.push(finPaint(new THREE.ShapeGeometry(sh))); }
-  else if (s.tail === 'clavus'){ const sh = new THREE.Shape(); sh.moveTo(-.9, h * .75); sh.quadraticCurveTo(-1.3, 0, -.9, -h * .75); sh.lineTo(-.9, h * .75); parts.push(finPaint(new THREE.ShapeGeometry(sh))); }
+  const tailEdge = (x, y) => x < -1.3;
+  const tailC = pt.tailFin ? C(pt.tailFin) : finC;
+  if (tails[s.tail]) parts.push(finPaint(shapeGeo(tails[s.tail]), tailC, tailEdge));
+  else if (s.tail === 'round'){ const sh = new THREE.Shape(); sh.moveTo(-.86, 0); sh.lineTo(-1.2, th * .85); sh.quadraticCurveTo(-1.6, 0, -1.2, -th * .85); sh.lineTo(-.86, 0); parts.push(finPaint(new THREE.ShapeGeometry(sh, 8), tailC, (x) => x < -1.33)); }
+  else if (s.tail === 'clavus'){ const sh = new THREE.Shape(); sh.moveTo(-.9, h * .75); sh.quadraticCurveTo(-1.3, 0, -.9, -h * .75); sh.lineTo(-.9, h * .75); parts.push(finPaint(new THREE.ShapeGeometry(sh, 8), tailC)); }
   else if (s.tail === 'fluke') parts.push(finPaint(xf(shapeGeo([[-.82, 0], [-1.42, .42], [-1.26, 0], [-1.42, -.42]]), { r: [Math.PI / 2, 0, 0] })));
-  // dorsal fins
-  const fin = (spec, sign = 1) => {
+  const fin = (spec, sign = 1, color = finC) => {
     if (!spec) return;
-    const [x0, x1, fh, kind] = spec, base = x => sign * topAt(x);
+    const [x0, x1, fh, kind] = spec, base = x => (sign > 0 ? topAt(x) : botAt(x)) * .92;
     let pts;
     if (kind === 'spiky'){
       pts = [[x0, base(x0)]]; const n = Math.max(4, Math.round((x1 - x0) * 10));
@@ -125,21 +154,44 @@ function fishGeometry(s, pt){
       pts.push([x1, base(x1)]);
     } else if (kind === 'dolphin') pts = [[x1, base(x1)], [x0 - .05, base(x0) + sign * fh], [x0 + (x1 - x0) * .3, base(x0) + sign * fh * .7], [x0, base(x0)]];
     else pts = [[x0, base(x0)], [x0 + (x1 - x0) * .3, base(x0) + sign * fh], [x1, base(x1) + sign * fh * .45], [x1, base(x1)]];
-    parts.push(finPaint(shapeGeo(pts)));
+    const lim = (x0 + x1) / 2;
+    parts.push(finPaint(shapeGeo(pts), color, (x, y) => Math.abs(y) > Math.abs(base(Math.max(x0, Math.min(x1, x)))) + fh * .6));
   };
-  fin(s.dorsal); fin(s.dorsal2); fin(s.anal, -1);
-  if (s.pect){
-    const ps = s.pect, px = .3, py = -h * .25, pz = w * prof(px) * .95 + .01;
-    for (const sz of [-1, 1]) parts.push(finPaint(xf(shapeGeo([[0, 0], [-ps * 1.4, ps * .5], [-ps * 1.2, -ps * .35]]), { p: [px, py, sz * pz], r: [0, sz * .35, -.25] })));
+  fin(s.dorsal, 1, pt.dorsalFin ? C(pt.dorsalFin) : finC); fin(s.dorsal2); fin(s.anal, -1, pt.analFin ? C(pt.analFin) : finC);
+  // pectoral fins on the flanks (every fish has them unless told otherwise)
+  const ps = s.pect ?? Math.min(.26, .12 + h * .3);
+  if (ps > 0){
+    const px = .32, py = -h * .2, pz = w * prof(px) * .95 + .012;
+    for (const sz of [-1, 1]) parts.push(finPaint(xf(shapeGeo([[0, 0], [-ps * 1.3, ps * .55], [-ps * 1.15, -ps * .3]]), { p: [px, py, sz * pz], r: [0, sz * .4, -.3] }), pt.pectFin ? C(pt.pectFin) : finC));
   }
-  if (s.pelvic) for (const sz of [-1, 1]) parts.push(finPaint(xf(shapeGeo([[0, 0], [-.05, -h * 1.1], [-.12, -h * .2]]), { p: [.32, -h * .6, sz * w * .4] })));
-  if (s.barbels) for (const sz of [-1, 1]) parts.push(solid(tube([V(.82 + snout * .3, -h * .55, sz * .03), V(.78, -h * 1.05, sz * .06), V(.72, -h * 1.3, sz * .07)], () => .012, { seg: 6, radial: 4 }), '#f2e6cf'));
-  if (s.tentacles) for (const sz of [-1, 1]) parts.push(solid(xf(new THREE.ConeGeometry(.03, .14, 4), { p: [.62, h * prof(.62) * .95 + .05, sz * .07], r: [0, 0, -.3] }), pt.fin));
-  // eyes
-  const ex = .62, eyeX = ex + (ex > .5 ? (ex - .5) * snout : 0), es = .07 * (s.eye ?? 1) * Math.min(1, Math.max(.5, h / .35));
-  if (s.eyeUp) parts.push(eyes(eyeX - .05, h * prof(ex) * .85, .045, es * .9));
-  else { const ey = h * prof(ex) * .22, ez = w * prof(ex) * Math.sqrt(1 - .22 * .22) * .92; parts.push(eyes(eyeX, ey, ez, es)); }
-  if (s.beak) parts.push(paint(xf(new THREE.SphereGeometry(1, 10, 6), { p: [1.05 + snout * .5, -h * .25, 0], s: [.22, h * .28, w * .3] }), (x, y, z, o) => o.copy(bottom).lerp(top, smooth(-.1, .1, y + h * .25))));
+  if (s.pelvic) for (const sz of [-1, 1]) parts.push(finPaint(xf(shapeGeo(s.pelvic === 'long' ? [[0, 0], [-.06, -h * 1.15], [-.14, -h * .2]] : [[0, 0], [-.1, -h * .45], [-.2, -h * .1]]), { p: [.3, botAt(.3) * .85, sz * w * .35] }), pt.pelvicFin ? C(pt.pelvicFin) : finC));
+  // head details
+  const nose = stretch(1), mouthY = s.mouth === 'up' ? h * .05 : -h * .12;
+  const mouthColor = pt.mouth || '#2a1a16';
+  if (s.mouth !== 'none' && !s.beak){
+    // a small dark slit at the front of the head, wider for big-mouthed fish
+    const big = s.mouth === 'big' ? 1.5 : s.mouth === 'lips' ? 1.25 : 1;
+    parts.push(solid(xf(new THREE.SphereGeometry(1, 8, 5), { p: [nose - .035, mouthY, 0], s: [.04 * big, .014 * big, Math.max(.03, w * .42) * big] }), mouthColor));
+    if (s.mouth === 'lips') parts.push(solid(xf(new THREE.TorusGeometry(.05, .022, 5, 8), { p: [nose - .01, mouthY, 0], r: [0, Math.PI / 2, 0], s: [1, .7, Math.max(1, w * 6)] }), pt.lips || pt.bottom));
+    if (s.mouth === 'beak') parts.push(solid(xf(new THREE.ConeGeometry(.06, .1, 5), { p: [nose + .02, mouthY + .01, 0], r: [0, 0, -Math.PI / 2] }), '#f2ede0'));
+    if (s.mouth === 'jaw') parts.push(solid(xf(new THREE.ConeGeometry(.04, .14, 4), { p: [nose + .04, mouthY - .03, 0], r: [0, 0, -Math.PI / 2 - .15] }), pt.bottom));
+  }
+  if (s.teeth) for (let i = 0; i < 3; i++) parts.push(solid(xf(new THREE.ConeGeometry(.012, .04, 3), { p: [nose - .06 + i * .02, mouthY + .015, w * .2 * (i % 2 ? 1 : -1)], r: [Math.PI, 0, 0] }), '#ffffff'));
+  if (s.barbels) for (const sz of [-1, 1]) parts.push(solid(tube([V(nose - .06, botAt(.9) * .7, sz * .03), V(nose - .1, botAt(.9) - .12, sz * .05), V(nose - .16, botAt(.9) - .26, sz * .06)], () => .012, { seg: 6, radial: 4 }), pt.barbel || '#f2e6cf'));
+  if (s.tentacles) for (const sz of [-1, 1]) for (let i = 0; i < 2; i++) parts.push(solid(xf(new THREE.ConeGeometry(.022, .14 - i * .04, 4), { p: [stretch(.6) + i * .03, topAt(.6) * .95 + .04, sz * (.05 + i * .02)], r: [sz * .3, 0, -.25] }), pt.fin));
+  if (s.spines) for (let i = 0; i < 6; i++){ const x = stretch(.45 + i * .07); parts.push(solid(xf(new THREE.ConeGeometry(.02, .06, 3), { p: [x, topAt(.45 + i * .07) * .9, (i % 2 ? 1 : -1) * w * .35], r: [(i % 2 ? 1 : -1) * .6, 0, 0] }), pt.fin)); }
+  // eyes: big and round, with a glint, for the friendly look
+  const ex = s.eyeX ?? .62, es = .085 * (s.eye ?? 1) * Math.min(1, Math.max(.5, h / .35));
+  if (s.eyeUp) parts.push(eyes(stretch(ex) - .05, topAt(ex) * .85, .05, es * .9, { up: true, iris: pt.iris }));
+  else {
+    const ey = topAt(ex) * (s.eyeY ?? .3), ez = w * prof(ex) * Math.sqrt(Math.max(0, 1 - (s.eyeY ?? .3) ** 2)) * .92;
+    parts.push(eyes(stretch(ex), ey, ez, es, { iris: pt.iris }));
+  }
+  if (s.beak){
+    // dolphin: a short rostrum under a rounded melon
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 8), { p: [nose - .02, -h * .32, 0], s: [.16, h * .2, w * .28] }), (x, y, z, o) => o.copy(bottom).lerp(top, smooth(-.05, .08, y + h * .3))));
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 14, 10), { p: [nose - .2, h * .06, 0], s: [.2, h * .5, w * .62] }), (x, y, z, o) => o.copy(bottom).lerp(top, smooth(-.3, .3, y / h))));
+  }
   return merge(parts);
 }
 
@@ -160,89 +212,106 @@ function flatfishGeometry(pt){
 /* ---------- eels: moray and conger ---------- */
 function eelGeometry(spec){
   const pt = spec.model.paint, conger = spec.model.conger;
-  const pts = [V(-1.5, -.3, .05), V(-1, .05, .15), V(-.4, -.18, -.05), V(.2, .08, 0), V(.75, .26, 0), V(1.2, .32, 0)];
-  const r = t => .14 * (t < .82 ? .2 + .8 * smooth(0, .45, t) : 1 - (t - .82) / .18 * .6);
+  const pts = [V(-1.5, -.3, .05), V(-1, .05, .15), V(-.4, -.2, -.05), V(.2, .06, 0), V(.72, .26, 0), V(1.15, .33, 0)];
+  const r = t => (conger ? .13 : .15) * (t < .8 ? .18 + .82 * smooth(0, .45, t) : 1 - (t - .8) / .2 * .55);
   const base = C(pt.base), spot = pt.spot && C(pt.spot), belly = pt.belly && C(pt.belly);
-  const body = paint(tube(pts, r, { seg: 60, radial: 8 }), (x, y, z, o, f) => {
+  const body = paint(tube(pts, r, { seg: 80, radial: 10 }), (x, y, z, o, f) => {
     o.copy(base);
-    if (belly && Math.sin(f.a) < -.3) o.copy(belly);
-    if (spot && hash(Math.round(x * 14), Math.round(y * 14), Math.round(z * 14)) < .32) o.lerp(spot, .9);
+    if (belly && Math.sin(f.a) < -.25) o.copy(belly);
+    // the moray's marbling: pale yellow blotches on dark brown, finer toward the head
+    if (spot && hash(Math.round(x * 22), Math.round(y * 22), Math.round(z * 22)) < .38) o.lerp(spot, .9);
     return o;
   });
   const parts = [body];
-  // a fin ribbon along the back
-  const ribbon = [], N = 30, curve = new THREE.CatmullRomCurve3(pts);
-  for (let i = 0; i <= N; i++){ const t = .05 + .7 * i / N, P = curve.getPointAt(t); ribbon.push([P, r(t)]); }
-  const rp = [];
+  // a fin fold along the back (the conger's edged in black)
+  const curve = new THREE.CatmullRomCurve3(pts), N = 40, rp = [];
   for (let i = 0; i < N; i++){
-    const [a, ra] = ribbon[i], [b, rb] = ribbon[i + 1], ha = ra + .05, hb = rb + .05;
-    rp.push(a.x, a.y + ra * .8, a.z, b.x, b.y + rb * .8, b.z, a.x, a.y + ha, a.z, b.x, b.y + rb * .8, b.z, b.x, b.y + hb, b.z, a.x, a.y + ha, a.z);
+    const t0 = .04 + .72 * i / N, t1 = .04 + .72 * (i + 1) / N, a = curve.getPointAt(t0), b = curve.getPointAt(t1), ra = r(t0), rb = r(t1), fa = ra + .06, fb = rb + .06;
+    rp.push(a.x, a.y + ra * .8, a.z, b.x, b.y + rb * .8, b.z, a.x, a.y + fa, a.z, b.x, b.y + rb * .8, b.z, b.x, b.y + fb, b.z, a.x, a.y + fa, a.z);
   }
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rp, 3));
-  parts.push(solid(rg, pt.fin || pt.base));
-  const head = curve.getPointAt(.93);
-  parts.push(eyes(head.x, head.y + .06, .065, .03, { white: conger ? '#d9dcd6' : '#e9d9a0' }));
-  // the moray's open mouth
-  if (!conger) parts.push(solid(xf(new THREE.ConeGeometry(.05, .2, 5), { p: [1.18, .26, 0], r: [0, 0, -Math.PI / 2 - .35] }), '#2a1a12'));
+  parts.push(paint(rg, (x, y, z, o) => o.copy(conger ? C(pt.base) : base).lerp(C(pt.fin || pt.base), conger ? .7 : 0)));
+  const head = curve.getPointAt(.92), tip = curve.getPointAt(1);
+  parts.push(eyes(head.x, head.y + .07, .07, .035, { white: conger ? '#e8ebe6' : '#f0e2a8', iris: conger ? null : '#c8a040' }));
+  if (!conger){
+    // open mouth with a few teeth, and the tube nostrils on the snout
+    parts.push(solid(xf(new THREE.ConeGeometry(.055, .2, 6), { p: [tip.x + .02, tip.y - .03, 0], r: [0, 0, -Math.PI / 2 - .3] }), '#3a1a14'));
+    for (let i = 0; i < 4; i++) parts.push(solid(xf(new THREE.ConeGeometry(.01, .04, 3), { p: [tip.x - .04 + i * .025, tip.y - .015, (i % 2 ? 1 : -1) * .03], r: [Math.PI, 0, 0] }), '#ffffff'));
+    for (const s of [-1, 1]) parts.push(solid(xf(new THREE.CylinderGeometry(.008, .012, .05, 4), { p: [tip.x + .02, tip.y + .05, s * .03], r: [0, 0, -.6] }), pt.base));
+  } else parts.push(solid(xf(new THREE.SphereGeometry(1, 8, 6), { p: [tip.x, tip.y - .02, 0], s: [.05, .025, .05] }), '#2a2a2a'));
   return merge(parts);
 }
-
 /* ---------- seahorse ---------- */
 function seahorseGeometry(pt){
-  const base = C(pt.base), spot = C(pt.spot);
-  const pts = [V(.28, -1.08, 0), V(.12, -1.2, 0), V(-.02, -1.08, 0), V(.02, -.9, 0), V(.12, -.62, 0), V(.06, -.28, 0), V(.02, .05, 0), V(.08, .32, 0), V(.18, .5, 0)];
-  const r = t => (t < .35 ? .025 + .07 * smooth(0, .35, t) : t < .7 ? .095 + .07 * Math.sin((t - .35) / .35 * Math.PI) : .1 - .04 * (t - .7) / .3);
-  const col = (x, y, z, o) => { o.copy(base); if (hash(Math.round(x * 25), Math.round(y * 25), Math.round(z * 25)) < .22) o.lerp(spot, .85); return o; };
-  const parts = [paint(tube(pts, r, { seg: 50, radial: 8 }), col)];
-  parts.push(paint(xf(new THREE.SphereGeometry(1, 10, 8), { p: [.24, .56, 0], s: [.17, .13, .1] }), col));
-  parts.push(paint(tube([V(.3, .52, 0), V(.48, .48, 0), V(.62, .45, 0)], t => .032 + (t > .85 ? .015 : 0), { seg: 8, radial: 6 }), col));
-  parts.push(solid(xf(shapeGeo([[0, 0], [-.16, .12], [-.2, -.08]]), { p: [.0, -.05, 0] }), pt.base));
-  for (let i = 0; i < 4; i++) parts.push(solid(xf(new THREE.ConeGeometry(.02, .07, 4), { p: [.16 + i * .04, .7 - i * .015, 0], r: [0, 0, -.2] }), pt.base));
-  parts.push(eyes(.28, .6, .085, .03));
+  const base = C(pt.base), spot = C(pt.spot), ring = C(pt.base).multiplyScalar(.75);
+  const pts = [V(.26, -1.1, 0), V(.12, -1.22, 0), V(-.02, -1.1, 0), V(.02, -.92, 0), V(.12, -.64, 0), V(.06, -.3, 0), V(.02, .04, 0), V(.08, .32, 0), V(.18, .5, 0)];
+  const r = t => (t < .35 ? .022 + .075 * smooth(0, .35, t) : t < .7 ? .097 + .075 * Math.sin((t - .35) / .35 * Math.PI) : .1 - .04 * (t - .7) / .3);
+  // bony rings along the body, white dots, a curly tail
+  const col = (x, y, z, o, f) => { o.copy(base); if (f && frac(f.t * 34) < .25) o.copy(ring); if (hash(Math.round(x * 28), Math.round(y * 28), Math.round(z * 28)) < .2) o.lerp(spot, .9); return o; };
+  const parts = [paint(tube(pts, r, { seg: 60, radial: 9 }), col)];
+  parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 9), { p: [.24, .57, 0], s: [.17, .13, .1] }), col));
+  parts.push(paint(tube([V(.32, .54, 0), V(.5, .5, 0), V(.66, .46, 0)], t => .028 + (t > .85 ? .016 : 0), { seg: 10, radial: 6 }), col));
+  parts.push(solid(xf(shapeGeo([[0, 0], [-.17, .13], [-.21, -.08]]), { p: [.0, -.05, 0] }), pt.base));
+  // coronet and the skin filaments of the mane
+  for (let i = 0; i < 5; i++) parts.push(solid(xf(new THREE.ConeGeometry(.018, .08, 4), { p: [.16 + i * .025, .71 - Math.abs(i - 2) * .01, (i - 2) * .012], r: [0, 0, -.2 + (i - 2) * .1] }), pt.base));
+  for (let i = 0; i < 9; i++){
+    const t = .5 + i * .05, P = new THREE.CatmullRomCurve3(pts).getPointAt(Math.min(.98, t));
+    parts.push(solid(tube([V(P.x - .06, P.y, 0), V(P.x - .13, P.y + .04, .01), V(P.x - .17, P.y + .1, .02)], () => .007, { seg: 5, radial: 3 }), pt.spot));
+  }
+  parts.push(eyes(.28, .61, .085, .032, { iris: '#c89040' }));
   return merge(parts);
 }
-
 /* ---------- rays and the angel shark, flat on the sand ---------- */
 function rayGeometry(m){
+  if (m.shape === 'angel') return angelSharkGeometry(m.paint);
   const pt = m.paint, top = C(pt.top), edge = C(pt.edge), spot = pt.spot && C(pt.spot);
-  const shapes = {
-    sting: th => { const c = Math.cos(th), s = Math.sin(th); const k = 1 / Math.pow(Math.abs(c) ** 1.7 + Math.abs(s) ** 1.7, 1 / 1.7); return [k * (c > 0 ? .62 : .72) * c, k * .85 * s]; },
-    butterfly: th => { const c = Math.cos(th), s = Math.sin(th); return [(c > 0 ? .4 : .38) * c, 1.3 * s * (1 - .25 * Math.abs(c))]; },
-    torpedo: th => [.62 * Math.cos(th), .6 * Math.sin(th)],
-    angel: th => { const c = Math.cos(th), s = Math.sin(th); const wing = Math.max(0, Math.sin(th * 2 - .4)) * .0; return [c > 0 ? .55 * c : .5 * c, (.62 + wing) * s * (c > -.3 ? 1 : .55)]; },
-  };
+  // outlines: a rhombus with pointed wing tips for the stingray, a wide diamond for the butterfly ray, a disc for the torpedo
+  const sup = (th, front, back, side, p) => { const c = Math.cos(th), s = Math.sin(th), k = 1 / Math.pow(Math.abs(c) ** p + Math.abs(s) ** p, 1 / p); return [k * (c > 0 ? front : back) * c, k * side * s]; };
+  const shapes = { sting: th => sup(th, .62, .62, .88, 1.25), butterfly: th => { const [x, z] = sup(th, .46, .3, 1.3, 1.2); return [x - .3 * Math.abs(z / 1.3) ** 1.5, z]; }, torpedo: th => [.6 * Math.cos(th), .58 * Math.sin(th)] };
   const f = shapes[m.shape];
-  const RINGS = 6, SEG = 28, verts = [0, .12, 0], idx = [];
+  const RINGS = 7, SEG = 32, verts = [0, .13, 0], idx = [];
   for (let r = 1; r <= RINGS; r++) for (let i = 0; i < SEG; i++){
     const th = i / SEG * Math.PI * 2, k = r / RINGS, [x, z] = f(th);
-    verts.push(x * k, (m.shape === 'torpedo' ? .16 : .12) * (1 - k * k), z * k);
+    verts.push(x * k, (m.shape === 'torpedo' ? .17 : .13) * (1 - k * k) + (m.shape === 'torpedo' ? 0 : .03 * Math.sin(k * Math.PI) * Math.abs(Math.sin(th))), z * k);
   }
   for (let i = 0; i < SEG; i++) idx.push(0, 1 + (i + 1) % SEG, 1 + i);
   for (let r = 1; r < RINGS; r++) for (let i = 0; i < SEG; i++){ const a = 1 + (r - 1) * SEG + i, b = 1 + (r - 1) * SEG + (i + 1) % SEG; idx.push(a, b, a + SEG, b, b + SEG, a + SEG); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.setIndex(idx);
   const parts = [paint(g, (x, y, z, o) => {
-    const k = Math.min(1, Math.hypot(x / .7, z / 1)); o.copy(top).lerp(edge, k * k);
-    if (spot && hash(Math.round(x * 14), Math.round(z * 14)) < .3) o.lerp(spot, .7);
-    if (pt.spot && m.shape === 'angel' && hash(Math.round(x * 20), Math.round(z * 20), 3) < .15) o.lerp(C(pt.spot), .8);
+    const k = Math.min(1, Math.hypot(x / .6, z / 1)); o.copy(top).lerp(edge, k * k);
+    if (spot && hash(Math.round(x * 16), Math.round(z * 16)) < .32) o.lerp(spot, .7);
     return o;
   })];
-  if (m.shape === 'angel'){
-    // the angel shark: a flattened shark body behind the wings
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 14, 8), { p: [-.55, .03, 0], s: [.85, .1, .2] }), (x, y, z, o) => o.copy(top)));
-    parts.push(solid(shapeGeo([[-1.25, .02], [-1.7, .3], [-1.58, .02], [-1.5, -.15]]), pt.top));
-    parts.push(solid(shapeGeo([[-.85, .1], [-.98, .26], [-1.02, .1]]), pt.top), solid(shapeGeo([[-1.05, .08], [-1.17, .22], [-1.2, .08]]), pt.top));
-  } else if (m.shape === 'torpedo'){
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 8), { p: [-.75, .03, 0], s: [.4, .09, .12] }), (x, y, z, o) => o.copy(top)));
-    parts.push(solid(shapeGeo([[-1.05, 0], [-1.35, .22], [-1.38, -.2]]), pt.top), solid(shapeGeo([[-.62, .1], [-.72, .24], [-.78, .1]]), pt.top));
+  if (m.shape === 'torpedo'){
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 8), { p: [-.75, .04, 0], s: [.42, .09, .12] }), (x, y, z, o) => o.copy(top)));
+    parts.push(solid(shapeGeo([[-1.05, 0], [-1.38, .24], [-1.42, -.2]]), pt.top), solid(shapeGeo([[-.6, .11], [-.7, .27], [-.78, .11]]), pt.top), solid(shapeGeo([[-.82, .1], [-.9, .22], [-.97, .1]]), pt.top));
   } else {
-    const L = m.shape === 'sting' ? 1.5 : .6;
-    parts.push(solid(tube([V(-.6, .02, 0), V(-.6 - L * .5, .03, .05), V(-.6 - L, .02, .1)], t => .03 * (1 - t) + .006, { seg: 10, radial: 5 }), pt.top));
-    if (m.shape === 'sting') parts.push(solid(xf(new THREE.ConeGeometry(.012, .2, 4), { p: [-1.1, .05, .06], r: [0, 0, Math.PI / 2] }), '#e0d4b8'));
+    const L = m.shape === 'sting' ? 1.6 : .5, x0 = m.shape === 'sting' ? -.55 : -.26;
+    parts.push(solid(tube([V(x0, .03, 0), V(x0 - L * .5, .04, .06), V(x0 - L, .02, .12)], t => .035 * (1 - t) + .006, { seg: 12, radial: 5 }), pt.top));
+    parts.push(solid(xf(new THREE.ConeGeometry(.014, .22, 4), { p: [x0 - L * .45, .07, .05], r: [0, 0, Math.PI / 2] }), '#e8dcc0'));
   }
-  parts.push(eyes(.25, .13, .12, .035, { up: true }));
+  // eyes and spiracles on top
+  parts.push(eyes(.24, .15, .11, .038, { up: true }));
+  for (const s of [-1, 1]) parts.push(solid(xf(new THREE.SphereGeometry(1, 6, 4), { p: [.12, .14, s * .12], s: [.03, .01, .02] }), '#2a241c'));
   return merge(parts);
 }
-
+function angelSharkGeometry(pt){
+  const top = C(pt.top), edge = C(pt.edge), spot = C(pt.spot);
+  const col = (x, y, z, o) => { o.copy(top).lerp(edge, Math.min(1, Math.abs(z) * 1.3)); if (hash(Math.round(x * 18), Math.round(z * 18), 2) < .2) o.lerp(spot, .85); return o; };
+  const flat = pts => paint(xf(shapeGeo(pts), { p: [0, .04, 0], r: [Math.PI / 2, 0, 0] }), col);
+  const parts = [paint(xf(new THREE.SphereGeometry(1, 20, 10), { p: [-.35, 0, 0], s: [.95, .11, .26] }), col)];
+  parts.push(paint(xf(new THREE.SphereGeometry(1, 14, 8), { p: [.42, 0, 0], s: [.22, .1, .3] }), col));
+  for (const s of [-1, 1]){
+    // the big pectoral "wings" and the pelvic fins behind them, flat on the sand
+    parts.push(flat([[.38, .2 * s], [.12, .82 * s], [-.22, .74 * s], [-.32, .24 * s]]));
+    parts.push(flat([[-.42, .18 * s], [-.55, .48 * s], [-.75, .4 * s], [-.72, .14 * s]]));
+  }
+  parts.push(solid(shapeGeo([[-.95, .08], [-1.05, .26], [-1.12, .08]]), pt.top), solid(shapeGeo([[-1.17, .06], [-1.25, .2], [-1.3, .06]]), pt.top));
+  parts.push(solid(shapeGeo([[-1.28, .02], [-1.62, .22], [-1.52, .02], [-1.6, -.12]]), pt.top));
+  parts.push(eyes(.4, .1, .1, .035, { up: true }));
+  for (const s of [-1, 1]) parts.push(solid(tube([V(.62, -.02, s * .05), V(.67, -.06, s * .06), V(.7, -.1, s * .07)], () => .008, { seg: 4, radial: 3 }), pt.edge));
+  return merge(parts);
+}
 /* ---------- octopus, cuttlefish, squid ---------- */
 function armTube(root, dir, len, r0, curl, side){
   const pts = [root.clone()]; const d = dir.clone().normalize(), p = root.clone();
@@ -254,17 +323,29 @@ function armTube(root, dir, len, r0, curl, side){
   return tube(pts, t => r0 * (1 - t * .85) + .008, { seg: 18, radial: 6 });
 }
 function octopusGeometry(){
-  const top = C('#e8673f'), belly = C('#ffbf98'), spot = C('#c84a2c');
-  const col = (x, y, z, o) => { o.copy(belly).lerp(top, smooth(-.3, .3, y)); if (y > .2 && hash(Math.round(x * 9), Math.round(y * 9), Math.round(z * 9)) > .85) o.lerp(spot, .8); return o; };
-  const mantle = paint(xf(new THREE.IcosahedronGeometry(1, 2), { p: [0, .55, 0], s: [.52, .6, .5] }), col);
-  const parts = [mantle];
+  const top = C('#e2683f'), belly = C('#ffc29c'), spot = C('#b8452a'), sucker = C('#ffe2cc');
+  const col = (x, y, z, o) => { o.copy(belly).lerp(top, smooth(-.3, .3, y)); if (y > .15 && hash(Math.round(x * 11), Math.round(y * 11), Math.round(z * 11)) > .82) o.lerp(spot, .8); return o; };
+  const parts = [paint(xf(new THREE.IcosahedronGeometry(1, 3), { p: [0, .55, 0], s: [.52, .62, .5] }), col)];
+  // warts on the mantle
+  for (let i = 0; i < 14; i++){ const a = hash(i, 1) * Math.PI * 2, b = .2 + hash(i, 2) * 1.1; parts.push(solid(xf(new THREE.IcosahedronGeometry(.035, 0), { p: [Math.cos(a) * Math.sin(b) * .52, .55 + Math.cos(b) * .62, Math.sin(a) * Math.sin(b) * .5] }), '#c8502e')); }
   for (let i = 0; i < 8; i++){
-    const a = (i + .5) / 8 * Math.PI * 2, out = V(Math.cos(a), -.35, Math.sin(a));
-    const root = V(Math.cos(a) * .25, .12, Math.sin(a) * .25);
-    parts.push(paint(armTube(root, out, 1.5, .12, 2.6, -1), (x, y, z, o, f) => o.copy(top).lerp(belly, Math.cos(f.a) < -.2 ? .8 : .15 + f.t * .3)));
+    const a = (i + .5) / 8 * Math.PI * 2, out = V(Math.cos(a), -.35, Math.sin(a)), root = V(Math.cos(a) * .25, .12, Math.sin(a) * .25);
+    const arm = armTube(root, out, 1.5, .12, 2.6, -1);
+    parts.push(paint(arm, (x, y, z, o, f) => o.copy(top).lerp(belly, Math.cos(f.a) < -.2 ? .8 : .15 + f.t * .3)));
+    // a row of suckers along the inside of the curl
+    const path = armPath(root, out, 1.5, 2.6, -1);
+    for (let k = 2; k < 9; k++){ const P = path[k], n = path[Math.min(8, k + 1)].clone().sub(path[k - 1]).normalize(), side = V(0, 1, 0).cross(n).normalize(), inward = n.clone().cross(side).normalize();
+      parts.push(solid(xf(new THREE.SphereGeometry(.028 * (1 - k / 12), 6, 4), { p: [P.x + inward.x * .07, P.y + inward.y * .07, P.z + inward.z * .07] }), sucker)); }
   }
-  parts.push(eyes(.44, .55, .2, .1));
+  parts.push(solid(xf(new THREE.CylinderGeometry(.04, .06, .14, 6), { p: [.18, .22, .38], r: [.9, 0, -.3] }), '#e8784a'));
+  parts.push(eyes(.44, .55, .2, .1, { iris: '#e8c060' }));
   return merge(parts);
+}
+function armPath(root, dir, len, curl, side){
+  const pts = [root.clone()]; const d = dir.clone().normalize(), p = root.clone();
+  const axis = V(0, 1, 0).cross(d).normalize(); const q = new THREE.Quaternion();
+  for (let i = 1; i <= 8; i++){ q.setFromAxisAngle(axis.lengthSq() > 0 ? axis : V(0, 0, 1), curl * (i / 8) ** 1.6 * side); d.applyQuaternion(q); p.addScaledVector(d, len / 8); pts.push(p.clone()); }
+  return pts;
 }
 function cuttlefishGeometry(){
   const base = C('#8a6a4a'), light = C('#e8dcc8'), dark = C('#3a2a1e');
@@ -312,24 +393,27 @@ function legs(xs, y, z, len, color, drop = .25, knee = .12){
   return out;
 }
 function lobsterGeometry(slipper){
-  const base = C(slipper ? '#8a5a34' : '#a8402a'), spot = C('#f0d890'), band = C(slipper ? '#5e3a20' : '#6e2418');
-  const col = (x, y, z, o) => { o.copy(base); if (hash(Math.round(x * 20), Math.round(y * 20), Math.round(z * 20)) < .18) o.lerp(spot, .8); return o; };
+  const base = C(slipper ? '#8a5a34' : '#a83e28'), spot = C(slipper ? '#d8b070' : '#f2dc8a'), band = C(slipper ? '#5e3a20' : '#7a2a1a');
+  const col = (x, y, z, o) => { o.copy(base); if (hash(Math.round(x * 22), Math.round(y * 22), Math.round(z * 22)) < .16) o.lerp(spot, .85); return o; };
   const parts = [];
   if (slipper){
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 16, 8), { p: [.25, 0, 0], s: [.55, .16, .4] }), col));
-    for (const s of [-1, 1]) parts.push(solid(xf(new THREE.SphereGeometry(1, 8, 4), { p: [.85, 0, s * .2], s: [.22, .04, .16] }), '#9a6a40'));
+    // flat, broad, armoured, with shovel-like plates instead of long antennae
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 18, 9), { p: [.25, 0, 0], s: [.55, .17, .42] }), col));
+    for (const s of [-1, 1]) parts.push(paint(xf(new THREE.SphereGeometry(1, 10, 5), { p: [.88, .01, s * .2], s: [.24, .045, .17] }), (x, y, z, o) => o.set('#9a6a40').lerp(C('#c8945a'), frac(x * 12) < .3 ? .6 : 0)));
   } else {
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 16, 10), { p: [.3, 0, 0], s: [.55, .22, .24] }), col));
-    for (const s of [-1, 1]) parts.push(solid(tube([V(.8, .08, s * .06), V(1.4, .3, s * .3), V(1.6, .1, s * .9), V(1.2, -.1, s * 1.4)], t => .04 * (1 - t) + .008, { seg: 30, radial: 5 }), '#b24a2e'));
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 18, 12), { p: [.3, .02, 0], s: [.58, .25, .27] }), col));
+    for (let i = 0; i < 14; i++){ const x = .0 + (i % 7) * .1, s = i < 7 ? 1 : -1; parts.push(solid(xf(new THREE.ConeGeometry(.025, .08, 4), { p: [x, .2 + Math.sin(x * 2) * .03, s * .12] }), '#7a2a1a')); }
+    for (const s of [-1, 1]) parts.push(solid(xf(new THREE.ConeGeometry(.05, .16, 5), { p: [.82, .2, s * .1], r: [0, 0, -.6] }), '#8a3020'));
+    // the long, thick, spiny antennae
+    for (const s of [-1, 1]) parts.push(paint(tube([V(.85, .1, s * .08), V(1.4, .32, s * .3), V(1.65, .12, s * .9), V(1.25, -.08, s * 1.45)], t => .055 * (1 - t) + .008, { seg: 34, radial: 6 }), (x, y, z, o, f) => o.copy(base).lerp(spot, frac(f.t * 16) < .25 ? .6 : 0)));
   }
-  // tail: segments, then the fan
   for (let i = 0; i < 5; i++){
-    const x = -.3 - i * .2, r = (slipper ? .32 : .2) * (1 - i * .1);
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 6), { p: [x, -.02, 0], s: [.13, r * .7, r] }), (xx, yy, zz, o) => o.copy(i % 2 ? base : band)));
+    const x = -.3 - i * .2, r = (slipper ? .32 : .21) * (1 - i * .1);
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 12, 6), { p: [x, -.02, 0], s: [.13, r * .72, r] }), (xx, yy, zz, o) => { o.copy(i % 2 ? base : band); if (!slipper && Math.abs(Math.abs(zz) - r * .5) < .04 && yy > 0) o.copy(spot); return o; }));
   }
-  parts.push(solid(xf(shapeGeo([[-1.2, 0], [-1.5, .25], [-1.55, 0], [-1.5, -.25]]), { r: [Math.PI / 2, 0, 0] }), slipper ? '#7a4e2c' : '#c05a3a'));
-  parts.push(...legs([.1, .25, .4, .55], -.12, .2, .45, slipper ? '#6a4426' : '#c86a3c'));
-  parts.push(eyes(.85, .14, .08, .035));
+  parts.push(paint(xf(shapeGeo([[-1.2, 0], [-1.52, .26], [-1.58, 0], [-1.52, -.26]]), { r: [Math.PI / 2, 0, 0] }), (x, y, z, o) => o.set(slipper ? '#7a4e2c' : '#c05a3a').lerp(spot, x < -1.45 ? .5 : 0)));
+  parts.push(...legs([.1, .25, .4, .55], -.12, .2, .45, slipper ? '#6a4426' : '#d8925a'));
+  parts.push(eyes(.86, .16, .08, .035));
   return merge(parts);
 }
 function hermitGeometry(){
@@ -375,16 +459,16 @@ function crabGeometry(){
 
 /* ---------- molluscs ---------- */
 function nudibranchGeometry(m){
-  const pt = m.paint, base = C(pt.base);
-  const parts = [];
+  const pt = m.paint, base = C(pt.base), parts = [];
   if (m.style === 'doris'){
+    // Felimare picta: deep blue with yellow lines, a pale foot rim, dark blue rhinophores and gill tuft
     const line = C(pt.line);
-    parts.push(paint(xf(new THREE.SphereGeometry(1, 22, 10, 0, Math.PI * 2, 0, Math.PI * .55), { s: [1, .35, .38] }), (x, y, z, o) => { o.copy(base); if (frac(Math.abs(z) * 9 + .2) < .22 && y > .02) o.copy(line); if (y < .03) o.set('#f2e8d0'); return o; }));
-    for (const s of [-1, 1]) parts.push(solid(xf(new THREE.ConeGeometry(.04, .2, 6), { p: [.7, .38, s * .1], r: [0, 0, -.3] }), '#2a2a8a'));
-    for (let i = 0; i < 8; i++){ const a = i / 8 * Math.PI * 2; parts.push(solid(xf(new THREE.ConeGeometry(.03, .18, 4), { p: [-.65 + Math.cos(a) * .08, .38, Math.sin(a) * .08], r: [Math.sin(a) * .7, 0, -Math.cos(a) * .7] }), pt.gill)); }
+    parts.push(paint(xf(new THREE.SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI * .55), { s: [1, .36, .36] }), (x, y, z, o) => { o.copy(base); if (y > .02 && (frac(Math.abs(z) * 10 + .15) < .2 || Math.abs(z) < .02)) o.copy(line); if (y < .035) o.set('#f2e8c8'); return o; }));
+    for (const s of [-1, 1]) parts.push(paint(xf(new THREE.ConeGeometry(.045, .22, 7), { p: [.7, .4, s * .1], r: [0, 0, -.3] }), (x, y, z, o) => o.set('#1d2a7a').lerp(line, y > .48 ? .7 : 0)));
+    for (let i = 0; i < 9; i++){ const a = i / 9 * Math.PI * 2; parts.push(paint(xf(new THREE.ConeGeometry(.032, .2, 4), { p: [-.62 + Math.cos(a) * .08, .38, Math.sin(a) * .08], r: [Math.sin(a) * .7, 0, -Math.cos(a) * .7] }), (x, y, z, o) => o.set('#1d2a7a').lerp(line, y > .45 ? .6 : 0))); }
   } else {
     const tip = C(pt.tip);
-    parts.push(paint(tube([V(-1, 0, 0), V(0, .05, 0), V(.8, .08, 0)], t => .04 + .07 * Math.sin(t * Math.PI * .9), { seg: 24, radial: 8 }), (x, y, z, o) => o.copy(base).lerp(C('#e8d0f0'), .25)));
+    parts.push(paint(tube([V(-1, 0, 0), V(0, .05, 0), V(.8, .08, 0)], t => .04 + .07 * Math.sin(t * Math.PI * .9), { seg: 28, radial: 8 }), (x, y, z, o) => o.copy(base).lerp(C('#efd0f2'), .2)));
     for (let i = 0; i < 9; i++) for (const s of [-1, 1]){
       const x = -.7 + i * .15;
       for (let k = 0; k < 2; k++) parts.push(paint(xf(new THREE.ConeGeometry(.035, .32, 5), { p: [x + k * .06, .2, s * (.06 + k * .05)], r: [s * (.5 + k * .3), 0, .1] }), (xx, yy, zz, o) => o.copy(base).lerp(tip, smooth(.15, .35, yy))));
@@ -395,26 +479,41 @@ function nudibranchGeometry(m){
   return merge(parts);
 }
 function pinnaGeometry(){
-  const parts = [];
-  for (const s of [-1, 1]){
-    const sh = new THREE.Shape(); sh.moveTo(0, -1); sh.quadraticCurveTo(.55, .1, .4, .9); sh.quadraticCurveTo(0, 1.15, -.4, .9); sh.quadraticCurveTo(-.55, .1, 0, -1);
-    const g = new THREE.ExtrudeGeometry(sh, { depth: .03, bevelEnabled: false, curveSegments: 10 });
-    xf(g, { p: [0, .3, s * .06], r: [0, s * .18, 0] });
-    parts.push(paint(g, (x, y, z, o) => o.set('#8a6a44').lerp(C('#c8a678'), frac((y + 1) * 6) < .3 ? .7 : 0)));
+  // two slightly domed valves, narrow and buried at the bottom, wide and rounded at the top
+  const parts = [], NU = 14, NV = 18;
+  for (const side of [-1, 1]){
+    const pos = [], idx = [];
+    for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++){
+      const v = j / NV, u = i / NU * 2 - 1, hw = .08 + .7 * Math.sin(Math.min(1, v * 1.05) * Math.PI * .5);
+      const y = -1 + 2.15 * v - .12 * u * u * smooth(.8, 1, v), z = side * (.04 + .13 * (1 - u * u) * Math.sin(v * Math.PI * .8));
+      pos.push(u * hw, y + .3, z);
+    }
+    for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++){ const a = j * (NU + 1) + i, b = a + 1, c = a + NU + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+    parts.push(paint(g, (x, y, z, o) => {
+      o.set('#9a7448').lerp(C('#5e4128'), smooth(.4, -.6, y));
+      if (frac(Math.atan2(x, y + 1) * 10) < .3) o.lerp(C('#c9a676'), .55);
+      if (frac((y + 1) * 9) < .16) o.lerp(C('#dcc08e'), .45);
+      return o;
+    }));
   }
   parts.push(solid(xf(new THREE.CylinderGeometry(.55, .65, .1, 14), { p: [0, -.6, 0] }), '#d8c8a0'));
   return merge(parts);
 }
-
 /* ---------- echinoderms ---------- */
 function starGeometry(pt){
-  const sh = new THREE.Shape();
-  for (let i = 0; i <= 10; i++){ const a = i / 10 * Math.PI * 2 + Math.PI / 2, r = i % 2 ? .28 : 1; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
-  const g = new THREE.ExtrudeGeometry(sh, { depth: .08, bevelEnabled: true, bevelThickness: .08, bevelSize: .08, bevelSegments: 2, curveSegments: 4 });
+  // Echinaster: five long, rounded, tapering arms
+  const sh = new THREE.Shape(), N = 5, pts = [];
+  for (let i = 0; i < N * 12; i++){
+    const a = i / (N * 12) * Math.PI * 2 + Math.PI / 2, ph = (i % 12) / 12, arm = Math.pow(Math.abs(Math.cos(ph * Math.PI)), 3);
+    const r = .2 + .85 * arm; pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  pts.forEach(([x, y], i) => (i ? sh.lineTo(x, y) : sh.moveTo(x, y)));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: .06, bevelEnabled: true, bevelThickness: .09, bevelSize: .07, bevelSegments: 2, curveSegments: 4 });
   g.rotateX(-Math.PI / 2);
-  const p = g.attributes.position; for (let i = 0; i < p.count; i++){ const r = Math.hypot(p.getX(i), p.getZ(i)); p.setY(i, p.getY(i) * (1 - r * .5) + r * r * .08); }
+  const p = g.attributes.position; for (let i = 0; i < p.count; i++){ const r = Math.hypot(p.getX(i), p.getZ(i)); p.setY(i, p.getY(i) * (1.1 - r * .7) + r * r * .1); }
   const base = C(pt.base);
-  return merge([paint(g, (x, y, z, o) => { o.copy(base); if (hash(Math.round(x * 18), Math.round(z * 18)) < .25) o.multiplyScalar(.75); return o; })]);
+  return merge([paint(g, (x, y, z, o) => { o.copy(base); if (hash(Math.round(x * 24), Math.round(z * 24)) < .22) o.multiplyScalar(.78); return o; })]);
 }
 function urchinGeometry(m){
   const base = C(m.paint.base), parts = [];
@@ -488,23 +587,34 @@ function coralGeometry(){
 
 /* ---------- turtle ---------- */
 function turtleGeometry(){
-  const shellC = C('#8a4a24'), plate = C('#b0662e');
-  const shell = paint(xf(new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI * .5), { s: [1, .42, .78] }), (x, y, z, o) => o.copy(shellC).lerp(plate, (Math.floor(x * 3.2) + Math.floor(z * 3.2 + 10)) % 2 ? .65 : 0));
+  const shellC = C('#8a4824'), plate = C('#b0662e'), seam = C('#5a2c14'), skin = C('#b0743a'), scale = C('#7a4a22');
+  // heart-shaped carapace with big scutes
+  const shell = paint(xf(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * .5), { s: [1, .42, .8] }), (x, y, z, o) => {
+    const u = x * 2.2, v = z * 2.6 + (Math.floor(x * 2.2) % 2 ? .5 : 0);
+    o.copy(shellC).lerp(plate, .3 + .4 * hash(Math.floor(u), Math.floor(v)));
+    if (frac(u) < .08 || frac(v) < .08) o.copy(seam);
+    if (y < .06) o.set('#d8b47a');
+    return o;
+  });
+  { const p = shell.attributes.position; for (let i = 0; i < p.count; i++){ const x = p.getX(i); if (x < -.3) p.setZ(i, p.getZ(i) * (1 + (x + .3) * .45)); } }
   const plastron = solid(xf(new THREE.SphereGeometry(1, 16, 6), { p: [0, -.02, 0], s: [.95, .08, .74] }), '#e6c890');
-  const head = paint(xf(new THREE.SphereGeometry(1, 12, 8), { p: [1.15, .08, 0], s: [.3, .2, .2] }), (x, y, z, o) => o.set('#a8642e').lerp(C('#e2c48a'), y < .05 ? .8 : 0));
-  // paddles drawn in x/y and laid flat (y becomes z); the left ones are mirrored
-  const paddle = (pts, x, z, side) => solid(xf(shapeGeo(pts.map(([px, py]) => [px, py * side])), { p: [x, -.01, z * side], r: [Math.PI / 2, 0, 0] }), '#9a5a2a');
-  const front = [[0, 0], [.15, .35], [-.2, .95], [-.5, 1.05], [-.35, .55], [-.25, .1]], back = [[0, 0], [-.05, .3], [-.35, .38], [-.42, .2], [-.25, 0]];
+  const skinCol = (x, y, z, o) => { o.copy(skin); if (hash(Math.round(x * 20), Math.round(y * 20), Math.round(z * 20)) < .3) o.copy(scale); if (y < -.02) o.lerp(C('#e8c890'), .7); return o; };
+  const head = paint(xf(new THREE.SphereGeometry(1, 14, 10), { p: [1.12, .08, 0], s: [.34, .24, .25] }), skinCol);
+  const beak = solid(xf(new THREE.ConeGeometry(.1, .14, 6), { p: [1.43, .03, 0], r: [0, 0, -Math.PI / 2] }), '#d8b070');
+  const neck = paint(xf(new THREE.CylinderGeometry(.16, .2, .3, 10), { p: [.85, .03, 0], r: [0, 0, Math.PI / 2] }), skinCol);
+  const paddle = (pts, x, z, side) => paint(xf(shapeGeo(pts.map(([px, py]) => [px, py * side])), { p: [x, -.01, z * side], r: [Math.PI / 2, 0, 0] }), skinCol);
+  const front = [[0, 0], [.15, .35], [-.15, .95], [-.48, 1.08], [-.36, .55], [-.25, .1]], back = [[0, 0], [-.05, .3], [-.35, .4], [-.44, .2], [-.25, 0]];
   const flips = [paddle(front, .45, .55, 1), paddle(front, .45, .55, -1), paddle(back, -.6, .5, 1), paddle(back, -.6, .5, -1)];
-  return merge([shell, plastron, head, eyes(1.32, .14, .12, .04), ...flips]);
+  return merge([shell, plastron, neck, head, beak, eyes(1.28, .16, .15, .05, { iris: '#5a3a1a' }), ...flips]);
 }
-
 /* ---------- entry point ---------- */
-export const VIEWS = { side: [.35, .18], top: [.25, .95], high: [.4, .55], front: [.9, .15], face: [.15, .12] };
+export const VIEWS = { side: [.35, .18], top: [.25, .95], high: [.4, .55], front: [.9, .15], face: [.15, .12], face3q: [1.05, .38], topUp: [-Math.PI / 2, 1.1] };
 export function viewFor(spec){
   const k = spec.model.kind;
+  if (k === 'ray' && spec.model.shape === 'butterfly') return 'topUp';
   if (['ray', 'flatfish', 'star', 'crab'].includes(k)) return 'top';
-  if (['urchin', 'holothurian', 'nudibranch', 'octopus', 'turtle', 'coral', 'hermit', 'anemone', 'cuttlefish', 'lobster'].includes(k)) return 'high';
+  if (['urchin', 'holothurian', 'nudibranch', 'turtle', 'coral', 'hermit', 'anemone', 'cuttlefish', 'lobster'].includes(k)) return 'high';
+  if (k === 'octopus') return 'face3q';
   if (['pinna', 'gorgonian'].includes(k)) return 'face';
   if (['jelly', 'seahorse'].includes(k)) return 'front';
   return 'side';

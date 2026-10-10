@@ -90,12 +90,12 @@ export async function deleteCert(id){
 
 /* ---------- species album ---------- */
 export async function listSeen(){
-  const { data, error } = await supabase.from('species_seen').select('species_id, seen_on, site');
+  const { data, error } = await supabase.from('species_seen').select('species_id');
   if (error) throw error;
   return data;
 }
-export async function markSeen(speciesId, { seen_on = null, site = null } = {}){
-  const { error } = await supabase.from('species_seen').upsert({ species_id: speciesId, seen_on: seen_on || null, site: site || null });
+export async function markSeen(speciesId){
+  const { error } = await supabase.from('species_seen').upsert({ species_id: speciesId });
   if (error) throw error;
 }
 export async function unmarkSeen(speciesId){

@@ -70,7 +70,7 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 
 Un álbum de cromos con 59 especies que se pueden ver buceando en España (Mediterráneo, Atlántico y Canarias). Cada cromo es una figura 3D low poly generada en código; las que no he visto salen en silueta con su nombre, y el marco indica la rareza (común, poco común, rara, muy rara). Al abrir un cromo se ve la figura en 3D, sus datos y un mapa con las zonas donde es más fácil verla.
 
-El álbum público es de solo lectura. Se edita desde el panel (`/admin`, tarjeta «Especies vistas»), que muestra el mismo álbum: al tocar un cromo se marca como visto (con fecha y sitio opcionales) o se quita, y el cambio sale al momento en la web. Lo visto se guarda en Supabase, tabla `species_seen` (migración 004); el catálogo vive en el código.
+El álbum público es de solo lectura. Se edita desde el panel (`/admin`, tarjeta «Especies vistas»), que muestra el mismo álbum: al tocar un cromo se marca como visto o se quita, con un solo botón, y el cambio sale al momento en la web. Lo visto se guarda en Supabase, tabla `species_seen` (migración 004); el catálogo vive en el código.
 
 - `src/album/species.js`: catálogo (nombre, nombre científico, grupo, zonas, dato curioso, rareza, zonas calientes y cómo se dibuja).
 - `src/album/models.js`: generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).

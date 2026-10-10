@@ -8,7 +8,6 @@ import { buildGeometry, MATERIAL, VIEWS, viewFor } from './models.js';
  * the admin dashboard mounts it with editing, writing to Supabase through `api`.
  */
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const dateLabel = iso => new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
 const num = sp => 'Nº ' + String(SPECIES.indexOf(sp) + 1).padStart(2, '0');
 const gems = r => (r > 1 ? '<span class="c-gems" aria-hidden="true">' + '◆'.repeat(r - 1) + '</span>' : '');
 
@@ -87,7 +86,7 @@ function paintHeat(svg, sp){
 
 /* ---------- the component ---------- */
 export function createAlbum(root, { editable = false, api = null, seen: seenRows = [], showProgress = true, onChange = () => {} } = {}){
-  let seen = new Map(seenRows.map(r => [r.species_id, { seen_on: r.seen_on, site: r.site }]));
+  let seen = new Map(seenRows.map(r => [r.species_id, {}]));
   const filter = { region: 'all', state: 'all' };
   root.classList.add('album-ui');
   root.innerHTML = `
@@ -153,10 +152,7 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
       <p class="v-fact"></p>
       <p class="v-seen"></p>
       <figure class="v-map"><figcaption>Dónde es más fácil verla</figcaption><div class="v-map-box"></div><p class="v-zones"></p></figure>
-      ${editable ? `<form class="v-edit">
-        <div class="v-fields"><label>Fecha <input type="date" name="date"></label><label>Sitio <input type="text" name="site" placeholder="Opcional"></label></div>
-        <div class="v-actions"><button class="btn primary" type="submit" name="mark">Marcar como vista</button><button class="btn ghost" type="button" name="unmark" hidden>Quitar</button></div>
-      </form>` : ''}
+      ${editable ? `<div class="v-edit"><button class="btn primary" type="button" data-act="toggle">La he visto</button></div>` : ''}
     </div>
     <button class="v-close" type="button" aria-label="Cerrar">✕</button>`;
   document.body.appendChild(dialog);
@@ -173,18 +169,18 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
     resize(); lastT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
   function show(sp){
-    const isSeen = seen.has(sp.id), info = seen.get(sp.id);
+    const isSeen = seen.has(sp.id);
     dialog.classList.toggle('is-locked', !isSeen); dialog.dataset.r = sp.rarity;
     d('.v-no').textContent = num(sp);
     d('.v-name').textContent = sp.name; d('.v-sci').textContent = sp.sci;
     d('.v-tags').innerHTML = `<span class="tier">${gems(sp.rarity)}${RARITY[sp.rarity].name}</span>` + sp.regions.map(r => `<span>${REGIONS[r]}</span>`).join('');
     d('.v-fact').textContent = sp.fact;
-    d('.v-seen').textContent = isSeen ? 'Vista' + (info.seen_on ? ` el ${dateLabel(info.seen_on)}` : '') + (info.site ? ` en ${info.site}` : '') : 'Todavía no la he visto.';
+    d('.v-seen').textContent = isSeen ? '✓ Ya la he visto' : 'Todavía no la he visto.';
     if (mapEl){ const top = paintHeat(mapEl, sp); d('.v-zones').textContent = top.join(' · '); }
     if (editable){
-      const f = d('.v-edit');
-      f.date.value = info?.seen_on || ''; f.site.value = info?.site || '';
-      f.mark.textContent = isSeen ? 'Guardar' : 'Marcar como vista'; f.unmark.hidden = !isSeen;
+      const b = d('[data-act="toggle"]');
+      b.textContent = isSeen ? 'Quitar de vistas' : 'La he visto';
+      b.classList.toggle('primary', !isSeen);
     }
     spin.az = 0; spin.el = 0;
     if (stage){ stage.mesh.material = isSeen ? MATERIAL : SILHOUETTE; frame(stage, sp); }
@@ -219,23 +215,19 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
 
   /* ---------- editing ---------- */
   if (editable){
-    const f = d('.v-edit');
-    f.addEventListener('submit', async e => {
-      e.preventDefault();
+    const b = d('[data-act="toggle"]');
+    b.addEventListener('click', async () => {
       const sp = order()[current]; if (!sp) return;
-      const rec = { seen_on: f.date.value || null, site: f.site.value.trim() || null };
-      f.mark.disabled = true;
-      try { await api.markSeen(sp.id, rec); seen.set(sp.id, rec); render(); show(sp); onChange(`${sp.name}: desbloqueada`, seen); }
-      catch (err){ onChange(explain(err), seen, true); }
-      f.mark.disabled = false;
-    });
-    f.unmark.addEventListener('click', async () => {
-      const sp = order()[current]; if (!sp) return;
+      const wasSeen = seen.has(sp.id);
+      b.disabled = true;
       try {
-        await api.unmarkSeen(sp.id); seen.delete(sp.id); render();
+        if (wasSeen){ await api.unmarkSeen(sp.id); seen.delete(sp.id); }
+        else { await api.markSeen(sp.id); seen.set(sp.id, {}); }
+        render();
         if (order().includes(sp)) show(sp); else dialog.close();
-        onChange(`${sp.name}: vuelve a estar por descubrir`, seen);
+        onChange(wasSeen ? `${sp.name}: vuelve a estar por descubrir` : `${sp.name}: desbloqueada`, seen);
       } catch (err){ onChange(explain(err), seen, true); }
+      b.disabled = false;
     });
   }
   function explain(err){
@@ -246,5 +238,5 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
   }
 
   render();
-  return { setSeen(rows){ seen = new Map(rows.map(r => [r.species_id, { seen_on: r.seen_on, site: r.site }])); render(); }, count: () => seen.size };
+  return { setSeen(rows){ seen = new Map(rows.map(r => [r.species_id, {}])); render(); }, count: () => seen.size };
 }
