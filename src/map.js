@@ -1,16 +1,16 @@
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import land from './data/land.json';
 
 /*
- * Map of the places I have dived. Sites are grouped by name; each marker grows with the
- * number of dives there. Tiles follow the day / night mode of the page.
+ * Map of the places I have dived: just the coastline (prebuilt by scripts/build-land.mjs) and
+ * a dot per site, with no tiles and no background, so the sea of the page shows through.
+ * Land and dots share Mercator units; the view is fitted to the sites and to the box size.
  */
-const TILES = {
-  day: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  night: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-};
+const U = land.unitsPerDeg;
+const MIN_SPAN = 4 * U;          // never zoom in closer than about 4 degrees across
+const PAD = 0.18;                // room around the sites, as a share of the view
 const fmt = (n, d = 1) => n.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const project = (lon, lat) => [lon * U, -U * 180 / Math.PI * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))];
 
 export function groupSites(dives){
   const map = new Map();
@@ -27,24 +27,84 @@ export function groupSites(dives){
 }
 
 export function renderMap(el, dives){
-  const sites = groupSites(dives).filter(s => s.lat != null);
+  const sites = groupSites(dives).filter(s => s.lat != null).map(s => ({ ...s, p: project(s.lon, s.lat) }));
   if (!sites.length) return null;
-  const map = L.map(el, {
-    zoomControl: true, attributionControl: true, scrollWheelZoom: false,
-    dragging: !L.Browser.mobile, tap: false, worldCopyJump: true,
-  });
-  const mode = () => (document.documentElement.getAttribute('data-dive') === 'night' ? 'night' : 'day');
-  let tiles = L.tileLayer(TILES[mode()], { subdomains: 'abcd', maxZoom: 18, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' }).addTo(map);
-  new MutationObserver(() => tiles.setUrl(TILES[mode()])).observe(document.documentElement, { attributes: true, attributeFilter: ['data-dive'] });
 
-  for (const s of sites){
-    const r = 5 + 3.2 * Math.sqrt(s.n);
-    L.circleMarker([s.lat, s.lon], { radius: r, className: 'site-dot', weight: 2 })
-      .bindTooltip(`<strong>${esc(s.name)}</strong><br>${s.n} ${s.n === 1 ? 'inmersión' : 'inmersiones'} · máx. ${fmt(s.maxDepth)} m`, { direction: 'top', offset: [0, -r], className: 'site-tip' })
-      .addTo(map);
+  el.innerHTML = `<svg class="map-land" aria-hidden="true" preserveAspectRatio="none"><path d="${land.d}"/></svg><div class="sites"></div>` +
+    '<div class="site-tip" role="presentation" hidden></div>';
+  const svg = el.querySelector('svg'), layer = el.querySelector('.sites'), tip = el.querySelector('.site-tip');
+  const radius = n => 3.5 + 1.6 * Math.sqrt(n);
+  const many = n => `${n} ${n === 1 ? 'inmersión' : 'inmersiones'}`;
+
+  // bounds of the sites, padded, at least MIN_SPAN wide, stretched to the shape of the box
+  const xs = sites.map(s => s.p[0]), ys = sites.map(s => s.p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const w0 = Math.max(...xs) - Math.min(...xs) || 1, h0 = Math.max(...ys) - Math.min(...ys) || 1;
+  let groups = [];
+
+  function layout(){
+    const W = el.clientWidth, H = el.clientHeight; if (!W || !H) return;
+    const aspect = W / H;
+    let w = w0 / (1 - 2 * PAD), h = h0 / (1 - 2 * PAD);
+    if (w / h < aspect) w = h * aspect; else h = w / aspect;
+    if (w < MIN_SPAN){ w = MIN_SPAN; h = w / aspect; }
+    const vx = cx - w / 2, vy = cy - h / 2;
+    svg.setAttribute('viewBox', `${vx} ${vy} ${w} ${h}`);
+
+    // sites whose dots would touch at this size become one dot (e.g. two coves a few km apart)
+    groups = [];
+    for (const s of sites){
+      const px = (s.p[0] - vx) / w * W, py = (s.p[1] - vy) / h * H;
+      const g = groups.find(g => Math.hypot(g.px - px, g.py - py) < radius(g.n) + radius(s.n) + 6);
+      if (g){ g.px = (g.px * g.n + px * s.n) / (g.n + s.n); g.py = (g.py * g.n + py * s.n) / (g.n + s.n); g.n += s.n; g.sites.push(s); }
+      else groups.push({ px, py, n: s.n, sites: [s] });
+    }
+    layer.innerHTML = groups.map((g, i) => {
+      const names = g.sites.map(s => s.name);
+      const label = names.length > 2 ? `${names[0]} +${names.length - 1}` : names.join(' · ');
+      const aria = g.sites.map(s => `${s.name}: ${many(s.n)}, máxima ${fmt(s.maxDepth)} metros`).join('; ');
+      return `<button class="site" type="button" data-i="${i}" style="left:${g.px / W * 100}%;top:${g.py / H * 100}%;--r:${radius(g.n).toFixed(1)}px" aria-label="${esc(aria)}">` +
+        `<span class="site-dot" aria-hidden="true"></span><span class="site-label" aria-hidden="true">${esc(label)}</span></button>`;
+    }).join('');
+    placeLabels();
   }
-  map.fitBounds(L.latLngBounds(sites.map(s => [s.lat, s.lon])), { padding: [28, 28], maxZoom: 9 });
-  // the map lives in a panel that can change size while the page lays out
-  new ResizeObserver(() => map.invalidateSize()).observe(el);
-  return map;
+
+  // names next to the dots, biggest sites first; a name that would overlap another is left out
+  // (it still shows on hover or tap)
+  function placeLabels(){
+    const buttons = [...layer.children];
+    const taken = buttons.map(b => b.querySelector('.site-dot').getBoundingClientRect());
+    const box = el.getBoundingClientRect(), shown = [];
+    const hit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    buttons.forEach((b, i) => {
+      const label = b.querySelector('.site-label');
+      for (const side of ['right', 'left', null]){
+        if (!side){ b.classList.add('lbl-off'); return; }
+        b.classList.toggle('lbl-left', side === 'left');
+        const r = label.getBoundingClientRect();
+        const inside = r.left >= box.left + 2 && r.right <= box.right - 2 && r.top >= box.top && r.bottom <= box.bottom;
+        if (inside && !shown.some(o => hit(r, o)) && !taken.some((t, j) => j !== i && hit(r, t))){ shown.push(r); return; }
+      }
+    });
+  }
+
+  function showTip(b){
+    const g = groups[+b.dataset.i];
+    tip.innerHTML = g.sites.map(s => `<strong>${esc(s.name)}</strong><span>${many(s.n)} · máx. ${fmt(s.maxDepth)} m</span>`).join('');
+    tip.style.left = b.style.left; tip.style.top = b.style.top; tip.hidden = false;
+    b.classList.add('is-active');
+  }
+  function hideTip(b){ tip.hidden = true; b.classList.remove('is-active'); }
+  const site = e => e.target.closest?.('.site');
+  layer.addEventListener('pointerover', e => { const b = site(e); if (b) showTip(b); });
+  layer.addEventListener('pointerout', e => { const b = site(e); if (b && !b.contains(e.relatedTarget)) hideTip(b); });
+  layer.addEventListener('focusin', e => { const b = site(e); if (b) showTip(b); });
+  layer.addEventListener('focusout', e => { const b = site(e); if (b) hideTip(b); });
+
+  let last = '';
+  const relayout = () => { const k = el.clientWidth + 'x' + el.clientHeight; if (k !== last){ last = k; layout(); } };
+  relayout();
+  new ResizeObserver(relayout).observe(el);
+  document.fonts?.ready.then(layout);
+  return { layout };
 }

@@ -10,6 +10,7 @@ const clock = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(
 const when = iso => new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
 
 let saved = [];      // dives in Supabase
+let certs = [];      // certifications in Supabase
 let pending = [];    // parsed from the chosen files: { dive, status: 'new' | 'dup' | 'bad', file, error }
 
 function toast(msg, isError = false){
@@ -75,16 +76,53 @@ const sw = (act, on, label, title) =>
 const STAT_LABELS = [['count', 'Nº'], ['time', 'Tiempo'], ['maxDepth', 'Máx.'], ['avgDepth', 'Media'], ['minTemp', 'Agua'], ['sac', 'SAC']];
 const STAT_TITLES = { count: 'número de inmersiones', time: 'tiempo bajo el agua y la más larga', maxDepth: 'profundidad máxima y la más profunda', avgDepth: 'profundidad media', minTemp: 'agua más fría', sac: 'consumo de aire (SAC)' };
 
+// the saved list shows a page at a time, so the cards below never get buried under a long log
+const PAGE = 8;
+let shown = PAGE, query = '', filter = 'all';
+
+function matches(d){
+  if (filter === 'training' && d.type !== 'training') return false;
+  if (filter === 'hidden' && !d.hidden) return false;
+  if (!query) return true;
+  const hay = [d.site?.name, d.number != null ? `nº ${d.number} ${d.number}` : '', d.notes, when(d.start)].join(' ').toLowerCase();
+  return query.split(/\s+/).every(w => hay.includes(w));
+}
+
+function updateKpis(){
+  $('kDives').textContent = saved.length;
+  $('kWeb').textContent = saved.filter(d => !d.hidden).length;
+  $('kTraining').textContent = saved.filter(d => d.type === 'training').length;
+  const planned = certs.filter(c => c.status === 'planned').length;
+  $('kCerts').textContent = certs.length - planned;
+  $('kCertsLbl').textContent = planned ? `titulaciones · ${planned} pendiente${planned > 1 ? 's' : ''}` : 'titulaciones';
+}
+
 function renderSaved(){
+  updateKpis();
   $('count').textContent = saved.length ? `${saved.length} ${saved.length === 1 ? 'inmersión' : 'inmersiones'}` : '';
-  $('logEmpty').hidden = saved.length > 0;
-  $('logList').innerHTML = saved.map(d => row(d,
-    `<div class="seg" role="group" aria-label="Tipo de inmersión"><button type="button" data-type="recreational" aria-pressed="${d.type !== 'training'}">Recreativa</button><button type="button" data-type="training" aria-pressed="${d.type === 'training'}">Entrenamiento</button></div>` +
+  const list = saved.filter(matches), page = list.slice(0, shown);
+  $('logEmpty').hidden = list.length > 0;
+  $('logEmpty').textContent = saved.length ? 'Ninguna inmersión coincide con la búsqueda.' : 'Todavía no hay inmersiones guardadas. Importa la primera.';
+  $('logMore').hidden = list.length <= PAGE;
+  $('logShown').textContent = `${page.length} de ${list.length}`;
+  $('logMoreBtn').hidden = page.length >= list.length;
+  $('logMoreBtn').textContent = `Ver ${Math.min(PAGE, list.length - page.length)} más`;
+  $('logList').innerHTML = page.map(d => row(d,
+    `<div class="seg" role="group" aria-label="Tipo de inmersión"><button type="button" data-type="recreational" aria-pressed="${d.type !== 'training'}">Recreativa</button><button type="button" data-type="training" aria-pressed="${d.type === 'training'}">Entreno</button></div>` +
     sw('web', !d.hidden, 'Web', 'Mostrar esta inmersión en la web') +
     '<button class="btn danger small" type="button" data-act="ask">Borrar</button>',
     `<div class="row-stats" role="group" aria-label="Estadísticas en las que cuenta">${STAT_LABELS.map(([k, l]) =>
       `<button class="pill" type="button" aria-pressed="${statOn(d, k)}" data-stat="${k}" title="Contar en ${STAT_TITLES[k]}">${l}</button>`).join('')}</div>`)).join('');
 }
+
+$('logMoreBtn').addEventListener('click', () => { shown += PAGE; renderSaved(); });
+$('logSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); shown = PAGE; renderSaved(); });
+$('logCard').querySelector('.log-tools .seg').addEventListener('click', e => {
+  const b = e.target.closest('[data-filter]'); if (!b) return;
+  filter = b.dataset.filter; shown = PAGE;
+  b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  renderSaved();
+});
 
 $('logList').addEventListener('click', async e => {
   const btn = e.target.closest('button'); if (!btn) return;
@@ -117,7 +155,7 @@ $('logList').addEventListener('click', async e => {
     const patch = { hidden: !on };
     btn.setAttribute('aria-checked', String(on)); btn.disabled = true;
     try {
-      await setDiveFlags(id, patch); Object.assign(d, patch);
+      await setDiveFlags(id, patch); Object.assign(d, patch); updateKpis();
       toast(on ? 'Se muestra en la web' : 'Oculta en la web');
     } catch (err){ btn.setAttribute('aria-checked', String(!on)); toast(explain(err), true); }
     btn.disabled = false;
@@ -135,7 +173,6 @@ $('logList').addEventListener('click', async e => {
 });
 
 /* ---------- certifications ---------- */
-let certs = [];
 let editing = null;   // id of the certification in the form, or 'new'
 const monthYear = iso => new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
@@ -153,6 +190,7 @@ async function refreshCerts(){
 }
 
 function renderCerts(){
+  updateKpis();
   $('certEmpty').hidden = certs.length > 0;
   $('certList').innerHTML = certs.map(c => {
     const meta = [c.agency, c.status === 'planned' ? 'pendiente' : c.obtained_on ? monthYear(c.obtained_on) : 'sin fecha', c.center].filter(Boolean).join(' · ');

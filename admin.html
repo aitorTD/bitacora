@@ -47,80 +47,101 @@
     </form>
   </section>
 
-  <div id="panel" hidden>
-    <section class="card">
-      <p class="eyebrow">Importar</p>
-      <h1>Subir inmersiones</h1>
-      <p class="sub">Exporta las inmersiones desde Pro Dive (archivo .uddf) y suéltalas aquí. Las que ya están en la bitácora se saltan solas.</p>
-      <label class="drop" id="drop" for="files">
-        <input id="files" type="file" accept=".uddf,.xml" multiple>
-        <span class="drop-title">Arrastra aquí los archivos .uddf</span>
-        <span class="drop-sub">o pulsa para elegirlos</span>
-      </label>
-      <div id="preview" hidden>
-        <ul class="list" id="previewList"></ul>
-        <div class="actions">
-          <button class="btn primary" id="importBtn" type="button">Importar</button>
-          <button class="btn ghost" id="clearBtn" type="button">Descartar</button>
-        </div>
-      </div>
+  <div id="panel" class="dash" hidden>
+    <section class="summary" aria-label="Resumen">
+      <div class="kpi"><b id="kDives">–</b><span>inmersiones</span></div>
+      <div class="kpi"><b id="kWeb">–</b><span>en la web</span></div>
+      <div class="kpi"><b id="kTraining">–</b><span>de entrenamiento</span></div>
+      <div class="kpi"><b id="kCerts">–</b><span id="kCertsLbl">titulaciones</span></div>
     </section>
-
-    <section class="card">
-      <div class="card-head">
-        <div>
-          <p class="eyebrow">Bitácora</p>
-          <h2>Inmersiones guardadas</h2>
-        </div>
-        <span class="count" id="count"></span>
-      </div>
-      <p class="sub small">«Web» muestra u oculta la inmersión. Debajo, elige en qué estadísticas cuenta cada una: por ejemplo, quita el SAC en una inmersión de prácticas con muchas subidas y bajadas. Lo que apagues tampoco aparece en su ficha.</p>
-      <ul class="list" id="logList"></ul>
-      <p class="empty" id="logEmpty" hidden>Todavía no hay inmersiones guardadas. Importa la primera arriba.</p>
-    </section>
-
-    <section class="card" id="certCard">
-      <div class="card-head">
-        <div>
-          <p class="eyebrow">Formación</p>
-          <h2>Titulaciones</h2>
-        </div>
-        <button class="btn small" id="certAdd" type="button">Añadir</button>
-      </div>
-      <p class="sub small">Salen en la web por orden: primero las conseguidas, por fecha, y después las que tienes pendientes.</p>
-      <ul class="list" id="certList"></ul>
-      <p class="empty" id="certEmpty" hidden>Aún no hay titulaciones. Añade la primera.</p>
-      <form class="cert-form" id="certForm" hidden novalidate>
-        <div class="field wide">
-          <label for="cTitle">Titulación</label>
-          <input id="cTitle" type="text" placeholder="Rescue Diver" required>
-        </div>
-        <div class="field">
-          <label for="cAgency">Agencia</label>
-          <input id="cAgency" type="text" placeholder="PADI, SSI…" list="agencies">
-          <datalist id="agencies"><option value="PADI"><option value="SSI"><option value="PSS"><option value="CMAS"><option value="FEDAS"><option value="NAUI"></datalist>
-        </div>
-        <div class="field">
-          <label for="cCenter">Centro</label>
-          <input id="cCenter" type="text" placeholder="Opcional">
-        </div>
-        <div class="field">
-          <span class="label">Estado</span>
-          <div class="seg" role="group" aria-label="Estado">
-            <button type="button" data-status="done" aria-pressed="true">Conseguida</button>
-            <button type="button" data-status="planned" aria-pressed="false">Pendiente</button>
+    <div class="col col-side">
+      <section class="card">
+        <p class="eyebrow">Importar</p>
+        <h2>Subir inmersiones</h2>
+        <p class="sub">Exporta las inmersiones desde Pro Dive (archivo .uddf) y suéltalas aquí. Las que ya están en la bitácora se saltan solas.</p>
+        <label class="drop" id="drop" for="files">
+          <input id="files" type="file" accept=".uddf,.xml" multiple>
+          <span class="drop-title">Arrastra aquí los archivos .uddf</span>
+          <span class="drop-sub">o pulsa para elegirlos</span>
+        </label>
+        <div id="preview" hidden>
+          <ul class="list" id="previewList"></ul>
+          <div class="actions">
+            <button class="btn primary" id="importBtn" type="button">Importar</button>
+            <button class="btn ghost" id="clearBtn" type="button">Descartar</button>
           </div>
         </div>
-        <div class="field">
-          <label for="cDate">Fecha</label>
-          <input id="cDate" type="date">
+      </section>
+
+      <section class="card" id="certCard">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">Formación</p>
+            <h2>Titulaciones</h2>
+          </div>
+          <button class="btn small" id="certAdd" type="button">Añadir</button>
         </div>
-        <div class="actions wide">
-          <button class="btn primary" id="certSave" type="submit">Guardar</button>
-          <button class="btn ghost" id="certCancel" type="button">Cancelar</button>
+        <p class="sub small">Salen en la web por orden: primero las conseguidas, por fecha, y después las que tienes pendientes.</p>
+        <ul class="list" id="certList"></ul>
+        <p class="empty" id="certEmpty" hidden>Aún no hay titulaciones. Añade la primera.</p>
+        <form class="cert-form" id="certForm" hidden novalidate>
+          <div class="field wide">
+            <label for="cTitle">Titulación</label>
+            <input id="cTitle" type="text" placeholder="Rescue Diver" required>
+          </div>
+          <div class="field">
+            <label for="cAgency">Agencia</label>
+            <input id="cAgency" type="text" placeholder="PADI, SSI…" list="agencies">
+            <datalist id="agencies"><option value="PADI"><option value="SSI"><option value="PSS"><option value="CMAS"><option value="FEDAS"><option value="NAUI"></datalist>
+          </div>
+          <div class="field">
+            <label for="cCenter">Centro</label>
+            <input id="cCenter" type="text" placeholder="Opcional">
+          </div>
+          <div class="field">
+            <span class="label">Estado</span>
+            <div class="seg" role="group" aria-label="Estado">
+              <button type="button" data-status="done" aria-pressed="true">Conseguida</button>
+              <button type="button" data-status="planned" aria-pressed="false">Pendiente</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cDate">Fecha</label>
+            <input id="cDate" type="date">
+          </div>
+          <div class="actions wide">
+            <button class="btn primary" id="certSave" type="submit">Guardar</button>
+            <button class="btn ghost" id="certCancel" type="button">Cancelar</button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <div class="col col-main">
+      <section class="card" id="logCard">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">Bitácora</p>
+            <h2>Inmersiones guardadas</h2>
+          </div>
+          <span class="count" id="count"></span>
         </div>
-      </form>
-    </section>
+        <p class="sub small">«Web» muestra u oculta la inmersión. Debajo, elige en qué estadísticas cuenta cada una: por ejemplo, quita el SAC en una inmersión de prácticas con muchas subidas y bajadas. Lo que apagues tampoco aparece en su ficha.</p>
+        <div class="log-tools">
+          <input id="logSearch" type="search" placeholder="Buscar por sitio, número o nota" aria-label="Buscar inmersiones">
+          <div class="seg" role="group" aria-label="Filtrar">
+            <button type="button" data-filter="all" aria-pressed="true">Todas</button>
+            <button type="button" data-filter="training" aria-pressed="false">Entreno</button>
+            <button type="button" data-filter="hidden" aria-pressed="false">Ocultas</button>
+          </div>
+        </div>
+        <ul class="list" id="logList"></ul>
+        <p class="empty" id="logEmpty" hidden>Todavía no hay inmersiones guardadas. Importa la primera.</p>
+        <div class="more" id="logMore" hidden>
+          <span class="count" id="logShown"></span>
+          <button class="btn small" id="logMoreBtn" type="button">Ver más</button>
+        </div>
+      </section>
+    </div>
   </div>
 </main>
 

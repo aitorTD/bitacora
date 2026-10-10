@@ -52,15 +52,12 @@ function renderCerts(certs){
   }).join('');
 }
 
-/* ---------- Map of dive sites (Leaflet loads only here) ---------- */
+/* ---------- Map of dive sites (the coastline loads only here) ---------- */
 function renderSites(dives){
   var located = dives.filter(function(d){ return d.site && d.site.lat != null; });
   if (!located.length){ removeSection('h-map'); return; }
   import('./map.js').then(function(m){
     m.renderMap(document.getElementById('map'), dives);
-    document.getElementById('sites').innerHTML = m.groupSites(dives).map(function(s){
-      return '<li><span class="site-name">' + esc(s.name) + '</span><span class="site-n">' + s.n + '</span></li>';
-    }).join('');
   }).catch(function(err){ console.warn('Map failed to load', err); removeSection('h-map'); });
 }
 
@@ -181,11 +178,10 @@ function renderLogbook(dives, settings){
     var spot = [.5, .35, .65, .2, .8, .12, .9].map(function(f){ return xMax * f; })
       .reduce(function(best, tc){ var n = crossing(tc); return n < best.n ? { tc: tc, n: n } : best; }, { tc: xMax * .5, n: Infinity }).tc;
     var bx = x(spot) - bw / 2;
-    var band = yMax >= 6 ? '<g class="stop-band"><rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--amber)" opacity=".1"/>' +
-      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(3) + '" y2="' + y(3) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".7"/>' +
-      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(6) + '" y2="' + y(6) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".7"/>' +
-      '<rect x="' + bx + '" y="' + (y(4.5) - 6) + '" width="' + bw + '" height="12" rx="6" fill="var(--card-solid)"/>' +
-      '<text x="' + (bx + bw / 2) + '" y="' + (y(4.5) + 3) + '" text-anchor="middle" fill="var(--amber)" font-size="7.5" font-family="var(--f-mono)">parada 3–6 m</text></g>' : '';
+    var band = yMax >= 6 ? '<g class="stop-band"><rect x="' + ml + '" y="' + y(3) + '" width="' + (W - ml - mr) + '" height="' + (y(6) - y(3)) + '" fill="var(--amber)" opacity=".07"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(3) + '" y2="' + y(3) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".5"/>' +
+      '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(6) + '" y2="' + y(6) + '" stroke="var(--amber)" stroke-width=".8" stroke-dasharray="2 3" opacity=".5"/>' +
+      '<text x="' + (bx + bw / 2) + '" y="' + (y(4.5) + 2.5) + '" text-anchor="middle" fill="var(--amber)" opacity=".85" font-size="7" letter-spacing=".6" font-family="var(--f-mono)">PARADA 3–6 M</text></g>' : '';
     var gid = 'pg' + idx;
     var px = x(peak[0]), py = y(peak[1]);
     var labelLeft = px > W * 0.6;

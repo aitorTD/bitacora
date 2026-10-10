@@ -36,7 +36,8 @@ npm run import -- ~/Downloads/ProDive_16_2026-09-13_1010.uddf
 ```
 index.html          contenido de la página y el selector día/noche
 src/main.js         estadísticas, titulaciones, perfiles de inmersión, profundímetro y scroll
-src/map.js          mapa de sitios de buceo (Leaflet, teselas de CARTO)
+src/map.js          mapa de sitios de buceo: costa dibujada en SVG, sin servicios de mapas
+src/data/land.json  costa ya proyectada (se regenera con `node scripts/build-land.mjs`, por ejemplo para ampliar la región)
 src/scene.js        escena 3D con three.js (cielo, mar, arrecife, fauna, linterna)
 src/diver.js        animación del submarinista: solo aletean las piernas, cuerpo y manos quietos
 src/styles.css      estilos y temas día/noche
@@ -46,7 +47,7 @@ src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
 src/lib/supabase.js cliente de Supabase: inmersiones y titulaciones
 admin.html, src/admin.*  panel privado: login, inmersiones y titulaciones
 supabase/schema.sql tablas y reglas de acceso (y migrations/ con los cambios posteriores)
-scripts/            importador de inmersiones y conversor del modelo a low poly
+scripts/            importador de inmersiones, conversor del modelo a low poly y generador de la costa del mapa
 public/models/      submarinista y máscara nomai (GLB)
 ```
 
