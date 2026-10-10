@@ -1,5 +1,7 @@
 /* Shared by the landing and the admin page. */
 *,*::before,*::after{box-sizing:border-box}
+/* iOS enlarges text when the phone is turned sideways; keep the sizes we set */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 [hidden]{display:none!important}
 /* No visible scrollbars anywhere (page, dialogs, lists); scrolling itself is untouched. */
 *{scrollbar-width:none;-ms-overflow-style:none}
