@@ -8,12 +8,22 @@ var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)')
 function fmt(n, d){ d = d == null ? 1 : d; return n.toLocaleString('es-ES',{minimumFractionDigits:d, maximumFractionDigits:d}); }
 function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function clock(sec){ var m = Math.floor(sec / 60), s = Math.round(sec % 60); if (s === 60){ m++; s = 0; } return m + ':' + (s < 10 ? '0' : '') + s; }
-function hoursMin(sec){ var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return h ? [h + '', 'h ' + m + ' min'] : [m + '', 'min']; }
+function hoursMin(sec){ var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); if (m === 60){ h++; m = 0; } return h ? [h + '<small>h</small> ' + m, 'min'] : [m + '', 'min']; }
 var TZ = 'Europe/Madrid';
 function dateLabel(iso, withTime){
   var d = new Date(iso);
   var s = d.toLocaleDateString('es-ES', {day:'numeric', month:'short', year:'numeric', timeZone:TZ});
   return withTime ? s + ' · ' + d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', timeZone:TZ}) : s;
+}
+// notes from Pro Dive come one item per line ("Neopreno: 7mm."): each line gets its own row and a
+// "label: value" line shows the label quietly, like the rest of the card's data
+function notesHtml(notes){
+  var lines = String(notes || '').split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+  if (!lines.length) return '';
+  return '<ul class="dive-notes" aria-label="Notas">' + lines.map(function(l){
+    var m = l.match(/^([^:]{1,24}):\s*(.+)$/);
+    return '<li>' + (m ? '<span class="nk">' + esc(m[1]) + '</span>' + esc(m[2]) : esc(l)) + '</li>';
+  }).join('') + '</ul>';
 }
 function gasName(g){ return ({Air:'aire', Nitrox:'nitrox'})[g] || (g ? g.toLowerCase() : 'aire'); }
 function coords(site){
@@ -57,7 +67,11 @@ function renderCerts(certs){
   document.getElementById('certs').innerHTML = certs.map(function(c){
     var planned = c.status === 'planned';
     var meta = [c.agency, planned ? 'Próximamente' : (c.obtained_on ? month(c.obtained_on) : ''), c.center].filter(Boolean).map(esc).join(' · ');
-    return '<li class="cert' + (planned ? ' is-planned' : '') + '"><span class="cert-dot" aria-hidden="true"></span>' +
+    // the planned one is a ring of four even dashes, drawn so they sit symmetric on the axes
+    var dot = planned
+      ? '<svg class="cert-dot" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.9" pathLength="8" stroke-dasharray="1.3 0.7" stroke-dashoffset="0.65"/></svg>'
+      : '<span class="cert-dot" aria-hidden="true"></span>';
+    return '<li class="cert' + (planned ? ' is-planned' : '') + '">' + dot +
       '<div class="cert-txt"><span class="cert-title">' + esc(c.title) + '</span>' + (meta ? '<span class="cert-meta">' + meta + '</span>' : '') + '</div></li>';
   }).join('');
 }
@@ -219,9 +233,10 @@ function renderLogbook(dives, settings){
     if (c != null) tile('sac', icoBubbles(), fmt(c), 'L/min', 'Consumo (SAC)');
     var kicker = (dv.number != null ? 'Nº ' + dv.number + ' · ' : '') + dateLabel(dv.start, true);
     var training = dv.type === 'training';
+    // on phones the badge shrinks to its icon, so the date and the type always share one line
     var badge = training
-      ? '<span class="dive-type"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/></svg>Entrenamiento</span>'
-      : '<span class="dive-type"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 9c1.6-2 3.3-2 4.9 0s3.3 2 4.9 0 2.6-1.4 3.2-.6"/></svg>Recreativa</span>';
+      ? '<span class="dive-type" title="Entrenamiento"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/></svg><span class="dt-txt">Entrenamiento</span></span>'
+      : '<span class="dive-type" title="Recreativa"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 9c1.6-2 3.3-2 4.9 0s3.3 2 4.9 0 2.6-1.4 3.2-.6"/></svg><span class="dt-txt">Recreativa</span></span>';
     var card = document.createElement('article');
     card.className = 'dive ' + (training ? 'is-training' : 'is-recreational');
     card.innerHTML =
@@ -232,7 +247,7 @@ function renderLogbook(dives, settings){
         '<div class="profile">' + svg + '<div class="tip" hidden></div></div>'
         : '<p class="no-profile">Inmersión registrada a mano: sin perfil de profundidad.</p>') +
       (tilesHtml.length ? '<div class="dstats">' + tilesHtml.join('') + '</div>' : '') +
-      (dv.notes ? '<p class="dive-notes">' + esc(dv.notes) + '</p>' : '');
+      notesHtml(dv.notes);
     divesEl.appendChild(card);
 
     if (!hasProfile) return;

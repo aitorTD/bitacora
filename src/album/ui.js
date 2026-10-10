@@ -9,7 +9,8 @@ import { buildGeometry, MATERIAL, VIEWS, viewFor } from './models.js';
  */
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = sp => 'Nº ' + String(SPECIES.indexOf(sp) + 1).padStart(2, '0');
-const gems = r => (r > 1 ? '<span class="c-gems" aria-hidden="true">' + '◆'.repeat(r - 1) + '</span>' : '');
+// rarity marks: one small drawn diamond per step above común (a font glyph sat off-centre)
+const gems = r => (r > 1 ? '<span class="c-gems" aria-hidden="true">' + '<i></i>'.repeat(r - 1) + '</span>' : '');
 
 /* ---------- 3D: an offscreen renderer for the cards, a live one for the viewer ---------- */
 const SILHOUETTE = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
@@ -117,7 +118,7 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
       for (const sp of list){
         const isSeen = seen.has(sp.id), li = document.createElement('li');
         li.innerHTML = `<button type="button" class="card ${isSeen ? 'is-seen' : 'is-locked'}" data-r="${sp.rarity}" data-id="${sp.id}" aria-label="${esc(sp.name)}, ${RARITY[sp.rarity].name.toLowerCase()}${isSeen ? '' : ', por descubrir'}">
-          <span class="c-no">${num(sp)}</span>${gems(sp.rarity)}
+          <span class="c-head"><span class="c-no">${num(sp)}</span>${gems(sp.rarity)}</span>
           <span class="c-art"><img alt="" width="320" height="320"></span>
           <span class="c-name">${esc(sp.name)}</span><span class="c-sci">${esc(sp.sci)}</span></button>`;
         ol.appendChild(li);
@@ -143,6 +144,8 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
   /* ---------- viewer ---------- */
   const dialog = document.createElement('dialog');
   dialog.className = 'album-viewer';
+  // the sheet itself takes focus on opening, not the first arrow (which then wore a focus ring on phones)
+  dialog.setAttribute('autofocus', ''); dialog.tabIndex = -1;
   dialog.innerHTML = `
     <div class="v-stage"><canvas aria-hidden="true"></canvas><p class="v-hint">Arrastra para girarlo</p>
       <button class="v-nav prev" type="button" aria-label="Anterior">‹</button><button class="v-nav next" type="button" aria-label="Siguiente">›</button></div>
@@ -150,9 +153,8 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
       <p class="v-no"></p><h2 class="v-name"></h2><p class="v-sci"></p>
       <p class="v-tags"></p>
       <p class="v-fact"></p>
-      <p class="v-seen"></p>
+      <div class="v-status"><p class="v-seen"></p>${editable ? `<button class="btn primary" type="button" data-act="toggle">La he visto</button>` : ''}</div>
       <figure class="v-map"><figcaption>Dónde es más fácil verla</figcaption><div class="v-map-box"></div><p class="v-zones"></p></figure>
-      ${editable ? `<div class="v-edit"><button class="btn primary" type="button" data-act="toggle">La he visto</button></div>` : ''}
     </div>
     <button class="v-close" type="button" aria-label="Cerrar">✕</button>`;
   document.body.appendChild(dialog);
@@ -163,7 +165,7 @@ export function createAlbum(root, { editable = false, api = null, seen: seenRows
   async function openViewer(id){
     const list = order(); current = list.findIndex(s => s.id === id); if (current < 0) return;
     if (!stage){ try { stage = makeStage(d('canvas')); stage.live = true; } catch (e) { stage = null; } }
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open){ dialog.showModal(); dialog.focus(); }
     if (!mapEl){ try { d('.v-map-box').innerHTML = await mapSvg(); mapEl = d('.v-map-svg'); } catch (e) { d('.v-map').hidden = true; } }
     show(list[current]);
     resize(); lastT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);

@@ -47,8 +47,10 @@
 .album-ui .c-art{display:block;aspect-ratio:1;border-radius:8px;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--tier) 14%,transparent),transparent 70%)}
 .album-ui .c-art img{display:block;width:100%;height:100%;object-fit:contain}
 .album-ui .is-locked .c-art img{filter:var(--sil-filter);opacity:var(--sil-opacity)}
-.album-ui .c-no{position:absolute;top:10px;left:12px;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.06em;color:var(--ink-dim)}
-.album-ui .c-gems{position:absolute;top:8px;right:11px;font-size:.62rem;letter-spacing:1px;color:var(--tier)}
+.album-ui .c-head{position:absolute;top:10px;left:12px;right:12px;height:14px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.album-ui .c-no{font-family:var(--f-mono);font-size:.66rem;line-height:1;letter-spacing:.06em;color:var(--ink-dim)}
+.c-gems{display:inline-flex;align-items:center;gap:4px;color:var(--tier)}
+.c-gems i{display:block;width:6px;height:6px;border-radius:1px;background:currentColor;transform:rotate(45deg)}
 .album-ui .is-locked .c-gems{opacity:.6}
 .album-ui .c-name{margin-top:8px;font-family:var(--f-display);font-weight:700;font-variation-settings:"wdth" 108;font-size:1rem;line-height:1.1;color:var(--ink)}
 .album-ui .c-sci{margin-top:3px;font-style:italic;font-size:.74rem;color:var(--ink-dim)}
@@ -62,6 +64,7 @@
 .album-viewer[open]{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
 .album-viewer[data-r="3"]{border-color:var(--t3)}
 .album-viewer[data-r="4"]{border-color:var(--t4)}
+.album-viewer:focus{outline:none}
 .album-viewer::backdrop{background:rgba(1,8,14,.6);backdrop-filter:blur(6px)}
 .v-stage{position:relative;min-height:360px;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--cyan) 18%,transparent),transparent 70%)}
 .v-stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
@@ -76,12 +79,13 @@
 .v-name{margin:0;font-family:var(--f-display);font-weight:820;font-variation-settings:"wdth" 120;font-size:clamp(1.8rem,4vw,2.4rem);line-height:1}
 .v-sci{margin:0;font-style:italic;color:var(--ink-dim)}
 .v-tags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
-.v-tags span{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-dim)}
+.v-tags > span{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-dim)}
 .v-tags .tier{color:var(--ink);border-color:color-mix(in srgb,var(--cyan) 40%,transparent)}
 .album-viewer[data-r="2"] .v-tags .tier{border-color:var(--t2)}
 .album-viewer[data-r="3"] .v-tags .tier{border-color:var(--t3)}
 .album-viewer[data-r="4"] .v-tags .tier{border-color:var(--t4)}
-.v-tags .c-gems{position:static;margin-right:5px;font-size:.6rem}
+.v-tags .c-gems{margin-right:7px}
+.v-tags .c-gems i{width:5px;height:5px}
 .album-viewer[data-r="2"] .c-gems{color:var(--t2)}.album-viewer[data-r="3"] .c-gems{color:var(--t3)}.album-viewer[data-r="4"] .c-gems{color:var(--t4)}
 .v-fact{margin:2px 0 0;line-height:1.5}
 .v-seen{margin:2px 0 0;font-family:var(--f-mono);font-size:.78rem;color:var(--cyan)}
@@ -97,16 +101,34 @@
 .v-map-svg .heat circle{mix-blend-mode:screen}
 :root[data-dive="day"] body:not(:has(.album-page)) .v-map-svg .heat circle{mix-blend-mode:multiply}
 .v-zones{margin:6px 0 0;font-size:.8rem;color:var(--ink-dim)}
-.v-edit{margin-top:6px;padding-top:14px;border-top:1px solid var(--line);display:flex}
+.v-status{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:24px}
+.v-status .btn{flex:none;padding:9px 14px;font-size:.84rem}
 .v-actions{display:flex;gap:10px}
 .album-viewer .btn{font:600 .9rem/1 var(--f-body);padding:12px 16px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
 .album-viewer .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
 .album-viewer .btn:focus-visible,.v-nav:focus-visible,.v-close:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .v-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card-solid) 70%,transparent);color:var(--ink);cursor:pointer}
+/* the map never pushes the sheet past the screen */
+.v-map-svg{max-height:min(320px,36dvh)}
+/* phones: the whole sheet fits on one screen, no scrolling */
 @media (max-width:760px){
   .album-viewer[open]{grid-template-columns:minmax(0,1fr)}
-  .v-stage{min-height:280px}
-  .v-close{position:fixed;z-index:2;top:calc(env(safe-area-inset-top,0px) + 22px);right:22px;width:38px;height:38px;background:color-mix(in srgb,var(--card-solid) 85%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
   .album-ui .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .v-stage{min-height:0;height:clamp(160px,29dvh,260px)}
+  .v-hint{bottom:6px;font-size:.58rem}
+  .v-nav{width:34px;height:34px;font-size:1.2rem}
+  .v-info{padding:10px 18px 16px;gap:6px}
+  .v-name{font-size:1.7rem}
+  .v-sci{font-size:.86rem;margin-top:-2px}
+  .v-tags{gap:5px;margin:2px 0}
+  .v-tags > span{font-size:.6rem;padding:3px 7px}
+  .v-fact{margin:0;font-size:.88rem;line-height:1.4}
+  .v-seen{margin:0;font-size:.72rem}
+  .v-map{margin-top:2px}
+  .v-map figcaption{font-size:.6rem;margin-bottom:4px}
+  .v-map-svg{height:clamp(110px,22dvh,210px);max-height:none}
+  .v-zones{margin-top:4px;font-size:.72rem}
+  .v-status .btn{padding:8px 12px;font-size:.8rem}
+  .v-close{top:8px;right:8px}
 }
 @media (prefers-reduced-motion:reduce){.album-ui .card{transition:none}.album-ui .card.is-seen[data-r="4"]{animation:none}.album-ui .bar span{transition:none}}

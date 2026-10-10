@@ -23,6 +23,9 @@ export function initScene(dive){
   catch (e) { return; }
 
   const small = innerWidth < 720;
+  // framing follows the shape of the screen: phones and portrait tablets (an iPad upright) get the
+  // centred, closer shot; only landscape screens put the diver beside the text
+  let narrow = small || innerWidth / innerHeight < .85;
   const lowPower = small || (navigator.hardwareConcurrency || 8) <= 4;
   // resolution adapts to the device: it starts sharp and steps down if frames come in slow
   const PR_MAX = Math.min(devicePixelRatio || 1, small ? 1.5 : 1.75), PR_MIN = Math.min(PR_MAX, small ? .8 : 1);
@@ -40,7 +43,7 @@ export function initScene(dive){
   scene.background = fogCol;
   scene.fog = new THREE.FogExp2(fogCol.clone(), 0.034);
 
-  const camera = new THREE.PerspectiveCamera(small ? 62 : 52, innerWidth / innerHeight, .15, 2400);
+  const camera = new THREE.PerspectiveCamera(narrow ? 62 : 52, innerWidth / innerHeight, .15, 2400);
   const SURF = 1.6; // water level in world units
 
   // seeded random so the world is the same on every visit
@@ -109,8 +112,8 @@ export function initScene(dive){
 
   /* ---------- Sky dome ---------- */
   const lightDir = new THREE.Vector3(), lightDirW = new THREE.Vector3();
-  const sunDir = new THREE.Vector3(small ? -.03 : .12, small ? .45 : .34, small ? -.89 : -.93).normalize();
-  const moonDir = new THREE.Vector3(small ? -.04 : -.05, small ? .5 : .42, small ? -.86 : -.9).normalize();
+  const sunDir = new THREE.Vector3(narrow ? -.03 : .12, narrow ? .45 : .34, narrow ? -.89 : -.93).normalize();
+  const moonDir = new THREE.Vector3(narrow ? -.04 : -.05, narrow ? .5 : .42, narrow ? -.86 : -.9).normalize();
   const skyMat = new THREE.ShaderMaterial({
     uniforms:{uLight:{value:lightDir}, uNight:{value:0}, uTime:{value:0}},
     vertexShader:`varying vec3 vDir; void main(){ vDir = position; vec4 mv = modelViewMatrix*vec4(position,1.); gl_Position = projectionMatrix*mv; gl_Position.z = gl_Position.w; }`,
@@ -274,18 +277,18 @@ export function initScene(dive){
   const boatHaze = { uHaze: { value: new THREE.Color() }, uHazeK: { value: .3 } };
   {
     // where it sits: a fixed bearing seen from the camera at the top of the page
-    const heroY = 2.6 + (small ? 1.25 : 1.05), cam0 = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, .1, 2000);
-    if (small){ cam0.position.set(.9, heroY, 6.5); cam0.lookAt(-.4, heroY + .95, -3); }
+    const heroY = 2.6 + (narrow ? 1.25 : 1.05), cam0 = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, .1, 2000);
+    if (narrow){ cam0.position.set(.9, heroY, 6.5); cam0.lookAt(-.4, heroY + .95, -3); }
     else { cam0.position.set(-1.2, heroY, 5.3); cam0.lookAt(-2.6, heroY + .75, -4); }
     cam0.updateMatrixWorld(); cam0.updateProjectionMatrix();
-    const dir = new THREE.Vector3(small ? .5 : .3, 0, .5).unproject(cam0).sub(cam0.position); dir.y = 0; dir.normalize();
-    const D = small ? 85 : 115;
+    const dir = new THREE.Vector3(narrow ? .5 : .3, 0, .5).unproject(cam0).sub(cam0.position); dir.y = 0; dir.normalize();
+    const D = narrow ? 85 : 115;
     boat.position.set(cam0.position.x + dir.x * D, SURF, cam0.position.z + dir.z * D);
     boat.userData.yaw = Math.atan2(dir.x, dir.z) + 2.2;     // three-quarter view, bow to the right
   }
   new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/beedle-boat.glb`).then(g => {
     const m = g.scene;
-    m.scale.setScalar(small ? .0085 : .0105);
+    m.scale.setScalar(narrow ? .0085 : .0105);
     m.traverse(o => {
       if (!o.isMesh) return;
       const mat = o.material; mat.fog = false; mat.roughness = .9;
@@ -514,10 +517,10 @@ export function initScene(dive){
         p.needsUpdate = true;
       }
     }
-    group.scale.setScalar(small ? .2 : .23);
+    group.scale.setScalar(narrow ? .2 : .23);
     scene.add(group);
     // it roams the open water near the surface, in the part of the frame left free by the text
-    const zone = small ? { x: [-2.2, 1.4], y: [-1.6, -7], z: [-3.2, .4] } : { x: [-5.5, 2.4], y: [-1.5, -8], z: [-4.5, 1] };
+    const zone = narrow ? { x: [-2.2, 1.4], y: [-1.6, -7], z: [-3.2, .4] } : { x: [-5.5, 2.4], y: [-1.5, -8], z: [-4.5, 1] };
     const pickSpot = out => out.set(rr(zone.x[0], zone.x[1]), rr(zone.y[1], zone.y[0]), rr(zone.z[0], zone.z[1]));
     const pos = pickSpot(new THREE.Vector3()), target = pickSpot(new THREE.Vector3());
     return { group, mantle, eyes, shapeTentacles, zone, pickSpot, pos, target, vel: new THREE.Vector3(), heading: new THREE.Vector3(1, .3, 0).normalize(),
@@ -577,11 +580,11 @@ export function initScene(dive){
   // found by casting a ray from the camera as it sits at the bottom, so it lands in the open part
   // of the screen: right of the text on desktop, below it on a phone
   const eggCam = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, .1, 100);
-  const bottomY = -40 + (small ? 1.25 : 1.05);
-  if (small){ eggCam.position.set(.9, bottomY, 6.5); eggCam.lookAt(-.4, bottomY - 2.6, -3); }
+  const bottomY = -40 + (narrow ? 1.25 : 1.05);
+  if (narrow){ eggCam.position.set(.9, bottomY, 6.5); eggCam.lookAt(-.4, bottomY - 2.6, -3); }
   else { eggCam.position.set(-1.2, bottomY, 5.3); eggCam.lookAt(-2.6, bottomY - 1.5, -4); }
   eggCam.updateMatrixWorld(); eggCam.updateProjectionMatrix();
-  const eggRay = new THREE.Raycaster(); eggRay.setFromCamera(new THREE.Vector2(small ? .05 : .32, small ? -.72 : -.5), eggCam);
+  const eggRay = new THREE.Raycaster(); eggRay.setFromCamera(new THREE.Vector2(narrow ? .05 : .32, narrow ? -.72 : -.5), eggCam);
   let eggT = 0; for (let k = 0; k < 6; k++){ const p = eggRay.ray.at(eggT, new THREE.Vector3()); const fy = floorY(p.x, p.z); eggT = (fy - eggRay.ray.origin.y) / eggRay.ray.direction.y; }
   const eggP = eggRay.ray.at(eggT, new THREE.Vector3());
   const EGG_X = eggP.x, EGG_Z = eggP.z;
@@ -763,6 +766,8 @@ export function initScene(dive){
   if (!small) addEventListener('pointermove', e => { pointer.x = e.clientX / innerWidth - .5; pointer.y = e.clientY / innerHeight - .5; });
 
   function applySize(){
+    narrow = small || innerWidth / innerHeight < .85;
+    camera.fov = narrow ? 62 : 52;
     camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
     renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
     composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
@@ -865,10 +870,10 @@ export function initScene(dive){
 
     // camera: starts above the waves, then sinks under
     pSmooth.x += (pointer.x - pSmooth.x) * .04; pSmooth.y += (pointer.y - pSmooth.y) * .04;
-    const camY = -dRaw + (small ? 1.25 : 1.05);
+    const camY = -dRaw + (narrow ? 1.25 : 1.05);
     const above = smooth(1.3, 3.2, camY);
     const isAbove = camY > SURF + .15;
-    if (small){
+    if (narrow){
       camera.position.set(.9, camY, 6.5);
       camera.lookAt(-.4, camY + mix(-2.6, .95, above), -3);
     } else if (OCTO_CAM && octo.group.visible){
@@ -943,7 +948,7 @@ export function initScene(dive){
     const yaw = spring(swim.yaw, .18 * (down - up), 1.6, dt);
     swim.breath += dt * speed / mix(4.6, 3.0, effort);
     const breathe = Math.sin(swim.breath * Math.PI * 2);
-    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .035, 0);
+    diverRoot.position.set(narrow ? -.4 : -.75, y + lead + breathe * .035, 0);
     diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .23) * .05;
     diverPitch.rotation.x = pitch + breathe * .015;
     diverRoll.rotation.z = Math.sin(t * .4) * .025 + yaw * .25;
@@ -971,7 +976,7 @@ export function initScene(dive){
       lightRig.lookAt(tmpV.copy(lightPos).multiplyScalar(2).sub(lightAim));    // the light points down its -z axis
       spotTarget.position.set(0, 0, -lightPos.distanceTo(lightAim));
     }
-    spot.intensity = swim.light * mix(85, small ? 22 : 38, smooth(31, 38.5, d));
+    spot.intensity = swim.light * mix(85, narrow ? 22 : 38, smooth(31, 38.5, d));
     spot.angle = mix(.34, .42, smooth(31, 38.5, d));
     beamMat.uniforms.uOpacity.value = swim.light;
     coreMat.uniforms.uOpacity.value = swim.light * .8;

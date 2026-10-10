@@ -94,12 +94,24 @@ export function renderMap(el, dives){
     tip.style.left = b.style.left; tip.style.top = b.style.top; tip.hidden = false;
     b.classList.add('is-active');
   }
-  function hideTip(b){ tip.hidden = true; b.classList.remove('is-active'); }
+  let pinned = null; // the dot whose card stays open after a tap
+  function hideTip(b){ tip.hidden = true; b.classList.remove('is-active'); if (pinned === b) pinned = null; }
   const site = e => e.target.closest?.('.site');
-  layer.addEventListener('pointerover', e => { const b = site(e); if (b) showTip(b); });
-  layer.addEventListener('pointerout', e => { const b = site(e); if (b && !b.contains(e.relatedTarget)) hideTip(b); });
-  layer.addEventListener('focusin', e => { const b = site(e); if (b) showTip(b); });
-  layer.addEventListener('focusout', e => { const b = site(e); if (b) hideTip(b); });
+  // mouse: the card follows the pointer
+  layer.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const b = site(e); if (b) showTip(b); });
+  layer.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const b = site(e); if (b && !b.contains(e.relatedTarget)) hideTip(b); });
+  // touch (and clicks): a tap opens the card and leaves it open; tapping the dot again or anywhere else closes it
+  layer.addEventListener('click', e => {
+    const b = site(e); if (!b) return;
+    if (pinned === b){ hideTip(b); return; }
+    if (pinned) hideTip(pinned);
+    layer.querySelectorAll('.site.is-active').forEach(x => x.classList.remove('is-active'));
+    showTip(b); pinned = b;
+  });
+  document.addEventListener('pointerdown', e => { if (pinned && !e.target.closest?.('.site')) hideTip(pinned); });
+  // keyboard
+  layer.addEventListener('focusin', e => { const b = site(e); if (b && b.matches(':focus-visible')) showTip(b); });
+  layer.addEventListener('focusout', e => { const b = site(e); if (b && pinned !== b) hideTip(b); });
 
   let last = '';
   const relayout = () => { const k = el.clientWidth + 'x' + el.clientHeight; if (k !== last){ last = k; layout(); } };
