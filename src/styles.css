@@ -74,6 +74,8 @@ p{margin:0}
 .dive-notes::before{content:"“";color:var(--amber);margin-right:2px}
 .dive-notes::after{content:"”";color:var(--amber);margin-left:1px}
 .dive[hidden]{display:none}
+.profile-legend{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 -6px;font-family:var(--f-mono);font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+.profile-legend .sw{width:16px;height:8px;border-block:1px dashed var(--amber);background:color-mix(in srgb,var(--amber) 16%,transparent)}
 .more-dives{margin-top:18px;display:flex;justify-content:center}
 .empty{margin-top:18px;color:var(--ink-dim);font-size:.95rem}
 .profile{position:relative;margin:0}
