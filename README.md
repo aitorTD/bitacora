@@ -22,7 +22,7 @@ Configuración, una sola vez:
 3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
 4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
 5. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
-6. Copia `.env.example` a `.env.local` con la URL y la *anon key* (Project Settings → API) y añade esas dos variables en Vercel (Settings → Environment Variables).
+6. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
 
 También se puede importar desde la terminal a `src/data/dives.json` (copia local):
 
