@@ -8,6 +8,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *::-webkit-scrollbar{display:none;width:0;height:0}
 /* Night dive is the base palette; the day dive overrides it. JS sets data-dive before first paint. */
 :root{
+  /* one corner for every container (panels, gauge, menu, cards) and a smaller one for what sits inside */
+  --r:12px;
+  --r-in:8px;
   --abyss:#020a12;
   --ink:#e4f2f3;
   --ink-dim:#93b6bd;
