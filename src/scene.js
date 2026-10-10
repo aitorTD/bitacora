@@ -4,10 +4,12 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { loadDiver, poseDiver, spring } from './diver.js';
+import { loadDiver, updateDiver, spring } from './diver.js';
 
 const MODEL_URL = `${import.meta.env.BASE_URL}models/diver.glb`;
 // development only: ?close=x,y,z puts the camera next to the diver to check the rig
+// development only: ?dtmax=1 lets a very slow test browser advance in real time
+const DT_MAX = (import.meta.env.DEV && +new URLSearchParams(location.search).get('dtmax')) || .1;
 const CLOSE = import.meta.env.DEV && new URLSearchParams(location.search).get('close')?.split(',').map(Number);
 
 export function initScene(dive){
@@ -184,15 +186,43 @@ export function initScene(dive){
   // rig: root (position, heading) > pitch > roll > model (lying along -z, back up)
   const diverRoot = new THREE.Group(), diverPitch = new THREE.Group(), diverRoll = new THREE.Group(), diverModel = new THREE.Group();
   diverRoot.add(diverPitch); diverPitch.add(diverRoll); diverRoll.add(diverModel);
-  diverModel.rotation.x = -Math.PI / 2;   // the file stands upright; lay it head-first along -z
-  diverModel.scale.setScalar(2.55);
+  diverModel.rotation.y = Math.PI;        // the file swims toward +z; turn it head-first along -z
+  diverModel.scale.setScalar(1.2);
   diverRoot.rotation.y = -1.95;
   scene.add(diverRoot);
   let diverRig = null;
   const diverAddCaustics = mat => addCaustics(mat);
   loadDiver(MODEL_URL, { decorate: diverAddCaustics }).then(rig => {
-    diverRig = rig; diverModel.add(rig.mesh);
+    rig.object.position.set(0, -.85, .15);   // centre the body on the rig's pivot
+    diverRig = rig; diverModel.add(rig.object);
   }).catch(err => console.warn('Diver model failed to load', err));
+
+  /* ---------- Dive light ---------- */
+  // No torch in the diver's hands: the light simply comes from the chest rig, where divers clip
+  // a backup light. It switches on in the deep and at night, and on the seabed it settles on
+  // the easter egg spot.
+  const lightRig = new THREE.Group(); scene.add(lightRig);
+  const spot = new THREE.SpotLight(0xffeccc, 0, 30, .34, .5, 1.05);
+  lightRig.add(spot);
+  const spotTarget = new THREE.Object3D(); spotTarget.position.set(0, 0, -6); lightRig.add(spotTarget); spot.target = spotTarget;
+  const beamLen = 7.5;
+  const beamMat = new THREE.ShaderMaterial({
+    uniforms:{uOpacity:{value:0}, uLen:{value:beamLen}},
+    vertexShader:`varying float vD; varying vec3 vN; varying vec3 vV; uniform float uLen;
+      void main(){ vD = -position.z/uLen; vec4 mv = modelViewMatrix*vec4(position,1.); vV = -mv.xyz; vN = normalMatrix*normal; gl_Position = projectionMatrix*mv; }`,
+    fragmentShader:`varying float vD; varying vec3 vN; varying vec3 vV; uniform float uOpacity;
+      void main(){ float f = abs(dot(normalize(vN), normalize(vV))); float a = pow(f,1.6)*pow(1.-smoothstep(.0,1.,vD),1.3)*smoothstep(0.,.12,vD); gl_FragColor = vec4(vec3(1.,.93,.8), a*uOpacity*.2); }`,
+    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide
+  });
+  const cone = (r, len) => { const g = new THREE.ConeGeometry(r, len, 56, 1, true); g.rotateX(Math.PI / 2); g.translate(0, 0, -len / 2); return g; };
+  lightRig.add(new THREE.Mesh(cone(1.35, beamLen), beamMat));
+  const coreMat = beamMat.clone(); coreMat.uniforms = THREE.UniformsUtils.clone(beamMat.uniforms); coreMat.uniforms.uLen.value = beamLen * .7;
+  lightRig.add(new THREE.Mesh(cone(.45, beamLen * .7), coreMat));
+  // the spot on the seabed where the light comes to rest: put the easter egg in this group
+  const easterEgg = new THREE.Group(); easterEgg.name = 'easterEgg';
+  scene.add(easterEgg);
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('egg'))
+    easterEgg.add(new THREE.Mesh(new THREE.OctahedronGeometry(.25), new THREE.MeshStandardMaterial({color:'#ff3b30', emissive:'#ff3b30', emissiveIntensity:.4})));
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
@@ -431,8 +461,22 @@ export function initScene(dive){
   addCaustics(rockMat);
   seed = 2024;
   const boulders = [];
+  // the easter egg spot: open sand in the frame at the bottom of the page, where the light lands
+  // found by casting a ray from the camera as it sits at the bottom, so it lands in the open part
+  // of the screen: right of the text on desktop, below it on a phone
+  const eggCam = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, .1, 100);
+  const bottomY = -40 + (small ? 1.25 : 1.05);
+  if (small){ eggCam.position.set(.9, bottomY, 6.5); eggCam.lookAt(-.4, bottomY - 2.6, -3); }
+  else { eggCam.position.set(-1.2, bottomY, 5.3); eggCam.lookAt(-2.6, bottomY - 1.5, -4); }
+  eggCam.updateMatrixWorld(); eggCam.updateProjectionMatrix();
+  const eggRay = new THREE.Raycaster(); eggRay.setFromCamera(new THREE.Vector2(small ? .05 : .32, small ? -.72 : -.5), eggCam);
+  let eggT = 0; for (let k = 0; k < 6; k++){ const p = eggRay.ray.at(eggT, new THREE.Vector3()); const fy = floorY(p.x, p.z); eggT = (fy - eggRay.ray.origin.y) / eggRay.ray.direction.y; }
+  const eggP = eggRay.ray.at(eggT, new THREE.Vector3());
+  const EGG_X = eggP.x, EGG_Z = eggP.z;
+  easterEgg.position.set(EGG_X, floorY(EGG_X, EGG_Z), EGG_Z);
   for (let i = 0; i < 30; i++){
     const x = rr(-8.5, 8.5), z = rr(3, -34), s = rr(.45, 2.1);
+    if (Math.hypot(x - EGG_X, z - EGG_Z) < s + 1.4) continue;   // keep the spot clear
     boulders.push({x, z, s, sy:rr(.55, .9), y:floorY(x, z) + s * .25});
   }
   // pinnacle near the diver's last stop
@@ -501,7 +545,7 @@ export function initScene(dive){
     const urch = new THREE.InstancedMesh(urchinGeo, new THREE.MeshStandardMaterial({color:'#2b1631', roughness:.6, metalness:.1}), 46);
     seed = 99;
     for (let i = 0; i < 46; i++){
-      const x = rr(-8, 8), z = rr(2, -30), y = floorY(x, z) + .04;
+      let x = rr(-8, 8), z = rr(2, -30); if (Math.hypot(x - EGG_X, z - EGG_Z) < 1.1) x += 2.4; const y = floorY(x, z) + .04;
       dummy.position.set(x, y, z); dummy.rotation.set(0, rand() * 6, 0); dummy.scale.setScalar(rr(.8, 1.3)); dummy.updateMatrix(); urch.setMatrixAt(i, dummy.matrix);
     }
     scene.add(urch);
@@ -577,12 +621,14 @@ export function initScene(dive){
   const clock = new THREE.Clock();
   let t = 0, firstFrame = true;
   const tmpV = new THREE.Vector3();
-  const swim = { prevD:null, vel:0, phase:0, breath:0,
-    effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.16, v:0}, lead:{x:0, v:0} };
-  const swimPose = { phase:0, amp:0, effort:0, pitch:0 };
+  const swim = { prevD:null, vel:0, breath:0, effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.3, v:0}, rate:{x:.45, v:0},
+    lead:{x:0, v:0}, down:{x:0, v:0}, up:{x:0, v:0}, yaw:{x:0, v:0}, light:0, flicker:-1, lightOn:false };
+  const diverState = { rate:.45, amp:.3, descend:0, ascend:0, dt:0 };
+  const lightAim = new THREE.Vector3(), lightGoal = new THREE.Vector3(), lightPos = new THREE.Vector3();
+  let lightAimInit = false;
 
   function frame(){
-    const dt = Math.min(clock.getDelta(), .1);
+    const dt = Math.min(clock.getDelta(), DT_MAX);
     const speed = dive.reduce ? 0 : 1;
     t += dt * speed;
     const dRaw = dive.depth;          // negative while still above the water
@@ -648,29 +694,55 @@ export function initScene(dive){
     bloom.radius = mix(.5, .95, Math.max(smooth(14, 34, d), n * smooth(2, 16, d)));
     bloom.threshold = mix(mix(.85 - smooth(16, 36, d) * .25, .62 - smooth(4, 30, d) * .08, n), mix(1.05, .9, n), above);
 
-    // diver: swim state follows the actual vertical speed, every value eased by springs
+    // diver: everything follows the actual vertical speed through springs, so a scroll of any
+    // speed or direction turns into a continuous movement
     if (swim.prevD === null) swim.prevD = dRaw;
     const vRaw = dt > 0 && !dive.reduce ? (dRaw - swim.prevD) / dt : 0; swim.prevD = dRaw;
-    swim.vel += (vRaw - swim.vel) * (1 - Math.exp(-dt / .15));
-    const vel = swim.vel;
-    const effort = spring(swim.effort, Math.tanh(Math.abs(vel) / 5.5), 2.4, dt);
-    const pitch = spring(swim.pitch, -.04 - .78 * Math.tanh(vel / 5.5), 2.1, dt);
-    const amp = spring(swim.amp, .16 + .84 * effort, 2.6, dt);
-    const freq = .4 + .85 * effort;                    // kick cycles per second: slow and calm, like a real diver
-    swim.phase += Math.PI * 2 * freq * dt * speed;    // phase only accumulates: no jumps when speed changes
-    const lead = spring(swim.lead, -.55 * Math.tanh(vel / 6), 1.6, dt);
+    swim.vel += (vRaw - swim.vel) * (1 - Math.exp(-dt / .2));
+    const vel = swim.vel;                                   // m/s, positive going down
+    const effort = spring(swim.effort, Math.tanh(Math.abs(vel) / 6), 2.2, dt);
+    const down = spring(swim.down, smooth(.4, 3, vel), 3, dt);     // how much it is descending
+    const up = spring(swim.up, smooth(.4, 3, -vel), 3, dt);        // how much it is ascending
+    // descending: head down, gliding with light kicks; ascending: head up, slow, letting the BCD lift
+    const pitch = spring(swim.pitch, -.04 - .7 * down * (.6 + .4 * effort) + .62 * up, 2.6, dt);
+    const amp = spring(swim.amp, (.3 + .55 * effort) * (1 - .35 * up) * (1 - .2 * down), 2.4, dt);
+    const rate = spring(swim.rate, (.42 + .7 * effort) * (1 - .3 * up), 2.4, dt);
+    const lead = spring(swim.lead, -.5 * Math.tanh(vel / 6), 1.5, dt);
+    // a small turn into the direction of travel, like a diver steering with the body
+    const yaw = spring(swim.yaw, .18 * (down - up), 1.6, dt);
     swim.breath += dt * speed / mix(4.6, 3.0, effort);
     const breathe = Math.sin(swim.breath * Math.PI * 2);
-    const ph = swim.phase;
-    diverRoot.position.set(small ? .75 : -.75, y + lead + Math.sin(ph * 2) * .025 * amp + breathe * .03, 0);
-    diverRoot.rotation.y = -1.95 + Math.sin(t * .23) * .05;
-    diverPitch.rotation.x = pitch + Math.sin(ph * 2 + .8) * .025 * amp;
-    diverRoll.rotation.z = Math.sin(ph + .5) * .04 * amp + Math.sin(t * .4) * .02;
+    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .035, 0);
+    diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .23) * .05;
+    diverPitch.rotation.x = pitch + breathe * .015;
+    diverRoll.rotation.z = Math.sin(t * .4) * .025 + yaw * .25;
 
     if (diverRig){
-      swimPose.phase = ph; swimPose.amp = amp; swimPose.effort = effort; swimPose.pitch = pitch;
-      poseDiver(diverRig.skeleton, swimPose);
+      diverState.rate = rate * speed; diverState.amp = amp; diverState.descend = down; diverState.ascend = up; diverState.dt = dive.reduce ? 0 : dt;
+      updateDiver(diverRig, diverState);
     }
+
+    // dive light: on in the deep and at night, with a short flicker when it comes on
+    const wantLight = !isAbove && (dive.night ? d > .5 : (swim.lightOn ? d > 24 : d > 26));
+    if (wantLight !== swim.lightOn){ swim.lightOn = wantLight; swim.flicker = wantLight ? 0 : -1; }
+    let lightTarget = swim.lightOn ? 1 : 0;
+    if (swim.flicker >= 0){ swim.flicker += dive.reduce ? 1 : dt; const f = swim.flicker; lightTarget = f < .08 ? 1 : f < .16 ? .1 : f < .26 ? .9 : f < .3 ? .3 : 1; if (f > .35) swim.flicker = -1; }
+    swim.light = (swim.flicker >= 0 || dive.reduce) ? lightTarget : swim.light + (lightTarget - swim.light) * Math.min(1, dt * 6);
+    lightRig.visible = !!diverRig && swim.light > .01;
+    if (diverRig){
+      diverRig.lightAnchor.getWorldPosition(lightPos);
+      // ahead and down along the swim; near the bottom it settles on the easter egg
+      lightGoal.set(lightPos.x + 4.6 + Math.sin(t * .3) * .4, lightPos.y - 2.4 + pitch * 2 + Math.sin(t * .4) * .25, -3);
+      lightGoal.lerp(easterEgg.position, smooth(31, 38.5, d));
+      if (!lightAimInit){ lightAim.copy(lightGoal); lightAimInit = true; }
+      lightAim.lerp(lightGoal, 1 - Math.exp(-dt * 2.4));
+      lightRig.position.copy(lightPos);
+      lightRig.lookAt(tmpV.copy(lightPos).multiplyScalar(2).sub(lightAim));    // the light points down its -z axis
+      spotTarget.position.set(0, 0, -lightPos.distanceTo(lightAim));
+    }
+    spot.intensity = swim.light * 85;
+    beamMat.uniforms.uOpacity.value = swim.light;
+    coreMat.uniforms.uOpacity.value = swim.light * .8;
 
     // bubbles
     if (diverRig) diverRig.mouth.getWorldPosition(regWorld); else regWorld.set(0, -999, 0);
@@ -741,5 +813,5 @@ export function initScene(dive){
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, rig: () => diverRig };
+  if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, easterEgg, lightAim, rig: () => diverRig };
 }

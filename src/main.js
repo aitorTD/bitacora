@@ -191,8 +191,9 @@ if ('ResizeObserver' in window) new ResizeObserver(computeAnchors).observe(docum
 // Depth follows the scroll through a critically damped spring: position and speed
 // both stay continuous, so the diver never jerks when you start or stop scrolling.
 var depthVel = 0, lastT = performance.now();
+var DT_MAX = (import.meta.env.DEV && +new URLSearchParams(location.search).get('dtmax')) || 0.1;
 function tick(now){
-  var dt = Math.min(0.1, Math.max(0, ((now || performance.now()) - lastT) / 1000)); lastT = now || performance.now();
+  var dt = Math.min(DT_MAX, Math.max(0, ((now || performance.now()) - lastT) / 1000)); lastT = now || performance.now();
   dive.target = depthAt(scrollY);
   var prev = dive.depth;
   if (reduce) { dive.depth = dive.target; depthVel = 0; }

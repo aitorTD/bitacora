@@ -28,13 +28,13 @@ Se añaden a `src/data/dives.json` y las que ya estaban se saltan, así que pued
 index.html          contenido de la página y el selector día/noche
 src/main.js         estadísticas, perfiles de inmersión, profundímetro y scroll
 src/scene.js        escena 3D con three.js (cielo, mar, arrecife, fauna, linterna)
-src/diver.js        rig y animación procedural del submarinista (esqueleto, aleteo, postura)
+src/diver.js        animación del submarinista: aleteo del modelo + posturas de descenso y ascenso
 src/styles.css      estilos y temas día/noche
 src/data/dives.json bitácora: las inmersiones importadas
 src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
 src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
-scripts/            importador de línea de comandos
-public/models/      modelo 3D del submarinista (GLB)
+scripts/            importador de inmersiones y conversor del modelo a low poly
+public/models/      modelo 3D del submarinista (GLB low poly)
 ```
 
 ## Despliegue
@@ -46,6 +46,10 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 - Login y panel privado para subir las inmersiones desde el navegador.
 - Sustituir la fauna geométrica por modelos glTF.
 
+## Easter egg
+
+Al llegar al fondo, la luz del submarinista se posa en un punto de arena libre que queda a la vista (a la derecha del texto en ordenador, debajo en el móvil). Ese punto es el grupo `easterEgg` de `src/scene.js`: lo que se añada a ese grupo aparece justo en el foco. En desarrollo, `?egg` muestra un marcador rojo en el sitio.
+
 ## Créditos
 
-Modelo 3D del submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9ee9b8b722ed457da424869cd8d08b1a) de [nolanfa](https://sketchfab.com/nolanfa), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Se le ha añadido un esqueleto y animación por código.
+Modelo 3D del submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly (malla simplificada y colores planos) con `scripts/lowpoly-model.mjs`.
