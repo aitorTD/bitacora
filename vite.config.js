@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const adminRoute = {
   name: 'admin-route',
   configureServer(server){
-    server.middlewares.use((req, _res, next) => { if (req.url === '/admin' || req.url === '/admin/') req.url = '/admin.html'; next(); });
+    server.middlewares.use((req, _res, next) => { if (req.url === '/admin' || req.url === '/admin/') req.url = '/admin.html'; if (req.url === '/album' || req.url === '/album/') req.url = '/album.html'; next(); });
   },
 };
 
@@ -28,6 +28,6 @@ export default defineConfig({
   build: {
     // three.js alone is ~500 kB; it loads in its own chunk after the page content.
     chunkSizeWarningLimit: 700,
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), admin: resolve(__dirname, 'admin.html'), notfound: resolve(__dirname, '404.html') } },
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), admin: resolve(__dirname, 'admin.html'), notfound: resolve(__dirname, '404.html'), album: resolve(__dirname, 'album.html') } },
   },
 });

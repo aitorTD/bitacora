@@ -21,7 +21,7 @@ Configuración, una sola vez:
 2. En **SQL Editor**, ejecuta `supabase/schema.sql`.
 3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
 4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
-5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web) y `supabase/migrations/003_formacion.sql` (titulaciones).
+5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web), `supabase/migrations/003_formacion.sql` (titulaciones) y `supabase/migrations/004_album.sql` (álbum de especies).
 6. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
 7. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
 
@@ -47,6 +47,7 @@ src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
 src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
 src/lib/supabase.js cliente de Supabase: inmersiones y titulaciones
 admin.html, src/admin.*  panel privado: login, inmersiones y titulaciones
+album.html, src/album/  álbum de especies
 supabase/schema.sql tablas y reglas de acceso (y migrations/ con los cambios posteriores)
 scripts/            importador de inmersiones, conversor del modelo a low poly y generador de la costa del mapa
 public/models/      submarinista y máscara nomai (GLB)
@@ -64,6 +65,14 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 ## Próximos pasos
 
 - Sustituir la fauna geométrica por modelos glTF.
+
+## Álbum de especies (/album)
+
+Un álbum de cromos con 59 especies que se pueden ver buceando en España (Mediterráneo, Atlántico y Canarias). Cada cromo es una figura 3D low poly generada en código; las que no he visto salen en silueta con su nombre. Para desbloquear una, entra en `/admin` y luego abre `/album`: con la sesión iniciada, cada cromo tiene «Marcar como vista» (con fecha y sitio opcionales).
+
+- `src/album/species.js`: el catálogo (nombre, nombre científico, grupo, zonas, dato curioso y cómo se dibuja).
+- `src/album/models.js`: los generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).
+- `src/album/sheet.html`: hoja de pruebas solo para desarrollo (`/src/album/sheet.html` con `npm run dev`) que dibuja todas las figuras juntas.
 
 ## Easter eggs
 

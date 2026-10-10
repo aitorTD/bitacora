@@ -87,3 +87,18 @@ export async function deleteCert(id){
   const { error } = await supabase.from('certifications').delete().eq('id', id);
   if (error) throw error;
 }
+
+/* ---------- species album ---------- */
+export async function listSeen(){
+  const { data, error } = await supabase.from('species_seen').select('species_id, seen_on, site');
+  if (error) throw error;
+  return data;
+}
+export async function markSeen(speciesId, { seen_on = null, site = null } = {}){
+  const { error } = await supabase.from('species_seen').upsert({ species_id: speciesId, seen_on: seen_on || null, site: site || null });
+  if (error) throw error;
+}
+export async function unmarkSeen(speciesId){
+  const { error } = await supabase.from('species_seen').delete().eq('species_id', speciesId);
+  if (error) throw error;
+}

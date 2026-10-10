@@ -26,7 +26,12 @@ const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: t
 async function loadLogbook(){
   if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, certs: [], settings: DEFAULTS };
   try {
-    const { listDives, listCerts } = await import('./lib/supabase.js');
+    const { listDives, listCerts, listSeen } = await import('./lib/supabase.js');
+    // how much of the species album is filled in, shown on the link to it
+    Promise.all([listSeen(), import('./album/species.js')]).then(([rows, m]) => {
+      const ids = new Set(m.SPECIES.map(s => s.id)), n = rows.filter(r => ids.has(r.species_id)).length;
+      document.getElementById('albumCount').textContent = n + ' / ' + m.SPECIES.length;
+    }).catch(() => {});
     const [dives, certs] = await Promise.all([listDives(), listCerts().catch(() => [])]);
     return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, certs, settings: DEFAULTS };
   } catch (err){

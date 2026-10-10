@@ -25,6 +25,11 @@ p{margin:0}
 .cue span{display:inline-block;animation:sink 2.2s ease-in-out infinite}
 @keyframes sink{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
 
+.album-link{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;color:var(--ink);text-decoration:none;font:500 .85rem/1 var(--f-body);transition:border-color .15s}
+.album-link:hover{border-color:var(--cyan)}
+.album-link:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.album-count{font-family:var(--f-mono);font-size:.75rem;color:var(--amber)}
+.album-count:empty{display:none}
 .sample-note{margin-top:14px;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;color:var(--ink-dim)}
 
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 16px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
@@ -115,7 +120,7 @@ p{margin:0}
 .record b small{font-size:.45em;margin-left:3px;font-weight:500}
 
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
-.btn{font:600 .92rem/1 var(--f-body);padding:13px 18px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.btn{font:600 .92rem/1 var(--f-body);padding:13px 18px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
 .btn:hover{border-color:var(--cyan)}
 .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}

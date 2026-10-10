@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>sheet</title>
+<style>body{margin:0;background:#0b2233;font:12px monospace;color:#cde}#g{display:grid;grid-template-columns:repeat(8,200px);gap:4px;padding:4px}figure{margin:0;background:#123044}img{display:block;width:200px;height:200px}figcaption{padding:2px 4px}</style></head>
+<body><div id="g"></div>
+<script type="module">
+import * as THREE from 'three';
+import { SPECIES } from './species.js';
+import { buildGeometry, MATERIAL, VIEWS, viewFor } from './models.js';
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true }); r.setSize(400, 400); r.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.6)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(2, 4, 3); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(30, 1, .1, 100);
+const g = document.getElementById('g'); const only = new URLSearchParams(location.search).get('only');
+for (const sp of SPECIES.filter(s => !only || only.split(',').includes(s.id))){
+  let mesh; try { mesh = new THREE.Mesh(buildGeometry(sp), MATERIAL); } catch (e) { console.error(sp.id, e); g.insertAdjacentHTML('beforeend', `<figure><figcaption>${sp.id} ERROR ${e.message}</figcaption></figure>`); continue; }
+  scene.add(mesh);
+  const R = mesh.geometry.boundingSphere.radius, [az, el] = VIEWS[viewFor(sp)], d = R / Math.sin(THREE.MathUtils.degToRad(15)) * 1.02;
+  cam.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d, Math.cos(az) * Math.cos(el) * d); cam.lookAt(0, 0, 0);
+  r.render(scene, cam);
+  g.insertAdjacentHTML('beforeend', `<figure><img src="${r.domElement.toDataURL()}"><figcaption>${sp.id}</figcaption></figure>`);
+  scene.remove(mesh);
+}
+document.body.dataset.done = '1';
+</script></body></html>

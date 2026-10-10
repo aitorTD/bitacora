@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Álbum de especies · Aitor Trillo</title>
+<meta name="description" content="Las especies que se pueden ver buceando en España, como un álbum de cromos: en color las que ya he visto, en silueta las que me faltan.">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#06304d">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+<meta property="og:title" content="Álbum de especies · Aitor Trillo">
+<meta property="og:description" content="Las especies que se pueden ver buceando en España: en color las que ya he visto, en silueta las que me faltan.">
+<meta property="og:url" content="__SITE_URL__/album">
+<meta property="og:image" content="__SITE_URL__/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@75..150,300..900&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<script>
+(function(){
+  var r = document.documentElement, m = null;
+  try { m = localStorage.getItem('dive-mode'); } catch (e) {}
+  if (m !== 'day' && m !== 'night') m = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day';
+  r.setAttribute('data-dive', m);
+})();
+</script>
+</head>
+<body>
+<header class="top">
+  <a class="back" href="/"><span aria-hidden="true">←</span> Bitácora</a>
+  <span class="editing" id="editing" hidden>Modo edición</span>
+</header>
+
+<main class="album">
+  <section class="intro">
+    <p class="eyebrow">Álbum · Especies de España</p>
+    <h1>Álbum de especies</h1>
+    <p class="lede">Lo que se puede ver buceando en el Mediterráneo, el Atlántico y Canarias. Las que ya he encontrado salen en color; las que me faltan, solo su silueta.</p>
+    <div class="progress" aria-live="polite">
+      <p class="count"><b id="seenN">0</b><span>de <span id="totalN">0</span> descubiertas</span></p>
+      <div class="bar"><span id="bar"></span></div>
+    </div>
+  </section>
+
+  <nav class="filters" aria-label="Filtrar el álbum">
+    <div class="chips" role="group" aria-label="Zona">
+      <button type="button" data-region="all" aria-pressed="true">Todas</button>
+      <button type="button" data-region="med" aria-pressed="false">Mediterráneo</button>
+      <button type="button" data-region="atl" aria-pressed="false">Atlántico</button>
+      <button type="button" data-region="can" aria-pressed="false">Canarias</button>
+    </div>
+    <div class="chips" role="group" aria-label="Estado">
+      <button type="button" data-state="all" aria-pressed="true">Todas</button>
+      <button type="button" data-state="seen" aria-pressed="false">Vistas</button>
+      <button type="button" data-state="missing" aria-pressed="false">Por descubrir</button>
+    </div>
+  </nav>
+
+  <div id="groups"></div>
+  <p class="empty" id="empty" hidden>Ninguna especie con estos filtros.</p>
+</main>
+
+<dialog class="viewer" id="viewer" aria-labelledby="vName">
+  <div class="v-stage">
+    <canvas id="vCanvas" aria-hidden="true"></canvas>
+    <p class="v-hint">Arrastra para girarlo</p>
+    <button class="v-nav prev" type="button" id="vPrev" aria-label="Anterior">‹</button>
+    <button class="v-nav next" type="button" id="vNext" aria-label="Siguiente">›</button>
+  </div>
+  <div class="v-info">
+    <p class="v-no" id="vNo"></p>
+    <h2 id="vName"></h2>
+    <p class="v-sci" id="vSci"></p>
+    <p class="v-regions" id="vRegions"></p>
+    <p class="v-fact" id="vFact"></p>
+    <p class="v-seen" id="vSeen"></p>
+    <form class="v-edit" id="vEdit" hidden>
+      <div class="v-fields">
+        <label>Fecha <input type="date" id="vDate"></label>
+        <label>Sitio <input type="text" id="vSite" placeholder="Opcional"></label>
+      </div>
+      <div class="v-actions">
+        <button class="btn primary" type="submit" id="vMark">Marcar como vista</button>
+        <button class="btn ghost" type="button" id="vUnmark" hidden>Quitar</button>
+      </div>
+    </form>
+  </div>
+  <button class="v-close" type="button" id="vClose" aria-label="Cerrar">✕</button>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="/src/album/main.js"></script>
+</body>
+</html>
