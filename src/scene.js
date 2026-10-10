@@ -233,15 +233,7 @@ export function initScene(dive){
     m.scale.setScalar(k); m.position.copy(c).multiplyScalar(-k);
     maskPivot.add(m);
   }).catch(err => console.warn('Mask failed to load', err));
-  // sand heaped around it so it reads as buried, not floating
-  {
-    const g = new THREE.CircleGeometry(1.7, 32, 0, Math.PI * 2); g.rotateX(-Math.PI / 2);
-    const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++){ const r = Math.hypot(p.getX(i), p.getZ(i)) / 1.7; p.setY(i, .1 * Math.pow(Math.max(0, 1 - r), 1.4) * (1 + .3 * Math.sin(p.getX(i) * 9 + p.getZ(i) * 7))); }
-    g.computeVertexNormals();
-    const mound = new THREE.Mesh(g, new THREE.MeshStandardMaterial({color:'#bfa57c', roughness:1, flatShading:true}));
-    mound.position.y = .01; easterEgg.add(mound);
-  }
+
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
@@ -442,23 +434,28 @@ export function initScene(dive){
   /* ---------- Sand floor ---------- */
   const floorY = (x, z) => -44 + 1.3 * fbm(x * .06, z * .06) + .3 * fbm(x * .35 + 4, z * .35, 3)
     + .07 * Math.sin(x * .45 + z * 2.1 + 1.6 * fbm(x * .1, z * .1, 2)) + 9 * smoothstep(7, 15, Math.abs(x));
+  // shared by the seabed and the sand heaped around the mask, so both read as the same ground
+  const sand = C('#cdb78f'), sandD = C('#a8936f'), gravel = C('#7c725f'), sandL = C('#dccaa3');
+  function sandColor(x, z, out){
+    const rip = .5 + .5 * Math.sin(x * .45 + z * 2.1 + 1.6 * fbm(x * .1, z * .1, 2));
+    out.copy(sand).lerp(sandL, smoothstep(.2, .6, fbm(x * .15, z * .15)) * .6).lerp(sandD, (1 - rip) * .35);
+    out.lerp(gravel, smoothstep(.35, .6, fbm(x * .3 + 8, z * .3)) * .7);
+    return out.lerp(rockB, smoothstep(8, 12, Math.abs(x)) * .7);
+  }
+  const sandMat = new THREE.MeshStandardMaterial({color:'#ffffff', vertexColors:true, roughness:1, metalness:0});
   {
     const segX = lowPower ? 100 : 150, segZ = lowPower ? 230 : 330;
     const g = new THREE.PlaneGeometry(36, 84, segX, segZ); g.rotateX(-Math.PI / 2); g.translate(0, 0, -26);
     const pos = g.attributes.position, col = new Float32Array(pos.count * 3);
-    const sand = C('#cdb78f'), sandD = C('#a8936f'), gravel = C('#7c725f'), sandL = C('#dccaa3');
     for (let i = 0; i < pos.count; i++){
-      const x = pos.getX(i), z = pos.getZ(i), y = floorY(x, z);
-      pos.setY(i, y);
-      const rip = .5 + .5 * Math.sin(x * .45 + z * 2.1 + 1.6 * fbm(x * .1, z * .1, 2));
-      tmpC.copy(sand).lerp(sandL, smoothstep(.2, .6, fbm(x * .15, z * .15)) * .6).lerp(sandD, (1 - rip) * .35);
-      tmpC.lerp(gravel, smoothstep(.35, .6, fbm(x * .3 + 8, z * .3)) * .7);
-      tmpC.lerp(rockB, smoothstep(8, 12, Math.abs(x)) * .7);
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setY(i, floorY(x, z));
+      sandColor(x, z, tmpC);
       col[i*3] = tmpC.r; col[i*3+1] = tmpC.g; col[i*3+2] = tmpC.b;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
     g.computeVertexNormals();
-    scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({color:'#ffffff', vertexColors:true, roughness:1, metalness:0})));
+    scene.add(new THREE.Mesh(g, sandMat));
   }
 
   /* ---------- Boulders and a pinnacle, resting on the sand ---------- */
@@ -503,6 +500,23 @@ export function initScene(dive){
     maskPivot.quaternion.setFromRotationMatrix(m4.makeBasis(side, upv, face));
     maskPivot.rotateZ(-.18);                       // turned a touch off-square
     maskPivot.position.y = .38;                    // the lower third stays under the sand
+  }
+  // sand heaped around the mask: same colours and material as the seabed, following its relief
+  // and fading into it at the edge, so it reads as buried rather than set on a plate
+  {
+    const R = 1.8, g = new THREE.CircleGeometry(R, 48, 0, Math.PI * 2); g.rotateX(-Math.PI / 2);
+    const p = g.attributes.position, col = new Float32Array(p.count * 3), ey = easterEgg.position.y;
+    for (let i = 0; i < p.count; i++){
+      const lx = p.getX(i), lz = p.getZ(i), r = Math.min(1, Math.hypot(lx, lz) / R);
+      const wx = EGG_X + lx, wz = EGG_Z + lz;
+      const heap = .16 * Math.pow(1 - r, 1.6) * (1 + .25 * fbm(wx * 3, wz * 3, 2));
+      p.setY(i, floorY(wx, wz) - ey + heap - .004 * r);
+      sandColor(wx, wz, tmpC);
+      col[i*3] = tmpC.r; col[i*3+1] = tmpC.g; col[i*3+2] = tmpC.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    easterEgg.add(new THREE.Mesh(g, sandMat));
   }
   for (let i = 0; i < 30; i++){
     const x = rr(-8.5, 8.5), z = rr(3, -34), s = rr(.45, 2.1);
@@ -651,9 +665,9 @@ export function initScene(dive){
   const clock = new THREE.Clock();
   let t = 0, firstFrame = true;
   const tmpV = new THREE.Vector3();
-  const swim = { prevD:null, vel:0, breath:0, effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.18, v:0}, rate:{x:.32, v:0},
+  const swim = { prevD:null, vel:0, breath:0, effort:{x:0, v:0}, pitch:{x:-.04, v:0}, amp:{x:.3, v:0}, rate:{x:.45, v:0},
     lead:{x:0, v:0}, down:{x:0, v:0}, up:{x:0, v:0}, yaw:{x:0, v:0}, light:0, flicker:-1, lightOn:false };
-  const diverState = { rate:.32, amp:.18, descend:0, ascend:0, dt:0 };
+  const diverState = { rate:.45, amp:.3, descend:0, ascend:0, dt:0 };
   const lightAim = new THREE.Vector3(), lightGoal = new THREE.Vector3(), lightPos = new THREE.Vector3();
   let lightAimInit = false;
   const eggAimOffset = new THREE.Vector3(0, 0, -.9);   // centre of the pool just behind the mask
@@ -736,18 +750,17 @@ export function initScene(dive){
     const up = spring(swim.up, smooth(.4, 3, -vel), 3, dt);        // how much it is ascending
     // descending: head down, gliding with light kicks; ascending: head up, slow, letting the BCD lift
     const pitch = spring(swim.pitch, -.04 - .7 * down * (.6 + .4 * effort) + .62 * up, 2.6, dt);
-    const amp = spring(swim.amp, (.18 + .5 * effort) * (1 - .35 * up) * (1 - .2 * down), 2.4, dt);
-    const rate = spring(swim.rate, (.32 + .55 * effort) * (1 - .3 * up), 2.4, dt);
+    const amp = spring(swim.amp, (.3 + .55 * effort) * (1 - .35 * up) * (1 - .2 * down), 2.4, dt);
+    const rate = spring(swim.rate, (.42 + .7 * effort) * (1 - .3 * up), 2.4, dt);
     const lead = spring(swim.lead, -.5 * Math.tanh(vel / 6), 1.5, dt);
     // a small turn into the direction of travel, like a diver steering with the body
-    const yaw = spring(swim.yaw, .1 * (down - up), 1.6, dt);
+    const yaw = spring(swim.yaw, .18 * (down - up), 1.6, dt);
     swim.breath += dt * speed / mix(4.6, 3.0, effort);
     const breathe = Math.sin(swim.breath * Math.PI * 2);
-    // a still body: breathing lifts and lowers it a few centimetres, nothing else sways
-    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .02, 0);
-    diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .17) * .012;
-    diverPitch.rotation.x = pitch + breathe * .006;
-    diverRoll.rotation.z = yaw * .15;
+    diverRoot.position.set(small ? -.4 : -.75, y + lead + breathe * .035, 0);
+    diverRoot.rotation.y = -1.95 + yaw + Math.sin(t * .23) * .05;
+    diverPitch.rotation.x = pitch + breathe * .015;
+    diverRoll.rotation.z = Math.sin(t * .4) * .025 + yaw * .25;
 
     if (diverRig){
       diverState.rate = rate * speed; diverState.amp = amp; diverState.descend = down; diverState.ascend = up; diverState.dt = dive.reduce ? 0 : dt;
