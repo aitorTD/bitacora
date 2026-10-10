@@ -18,7 +18,7 @@ h1{font-size:clamp(2.9rem,9vw,5.8rem);line-height:.9;font-weight:850;font-variat
 h2{font-size:clamp(1.6rem,4vw,2.25rem);line-height:1.02;font-weight:720;font-variation-settings:"wdth" 118;margin-bottom:12px}
 p{margin:0}
 .h1-name{display:block;margin-bottom:.32em;font-size:clamp(1.7rem,3.6vw,2.6rem);line-height:1;font-weight:760;font-variation-settings:"wdth" 112;letter-spacing:.005em;color:var(--amber)}
-.h1-title{display:block}
+.h1-title{display:block;white-space:nowrap}
 .lede{font-size:clamp(1.05rem,2.2vw,1.25rem);max-width:30rem;margin-top:22px;color:var(--ink);text-shadow:0 1px 14px var(--glow)}
 .sub{color:var(--ink-dim);max-width:34rem}
 .cue{margin-top:34px;font-family:var(--f-mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);display:inline-flex;gap:10px;align-items:center}

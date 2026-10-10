@@ -56,6 +56,11 @@ public/models/      submarinista y máscara nomai (GLB)
 
 Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja la configuración por defecto (build `npm run build`, salida `dist`). Cada push a `main` se publica solo.
 
+- `api/keepalive.js` + `crons` en `vercel.json`: una vez al día lee una fila de Supabase para que el proyecto gratuito no se pause por inactividad.
+- La tarjeta para compartir (`public/og.jpg`, etiquetas `og:` en `index.html`) usa el dominio de producción que Vercel da al compilar (`VERCEL_PROJECT_PRODUCTION_URL`).
+- `404.html`: página de error con el estilo de la web.
+- Estadísticas de visitas: Vercel Web Analytics (`@vercel/analytics`); hay que activarlo una vez en la pestaña Analytics del proyecto.
+
 ## Próximos pasos
 
 - Sustituir la fauna geométrica por modelos glTF.

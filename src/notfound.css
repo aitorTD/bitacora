@@ -1,0 +1,23 @@
+@import './tokens.css';
+/* The 404: lost in the deep, a few bubbles rising, one way back up. */
+body{min-height:100vh;min-height:100dvh;background:radial-gradient(120% 80% at 70% 0%,var(--w1),var(--abyss) 55%,var(--w3));overflow:hidden}
+:root[data-dive="day"] body{background:radial-gradient(120% 80% at 70% 0%,var(--w0),var(--w1) 45%,var(--w2))}
+:root[data-dive="day"]{--ink:#e9f7f8;--ink-dim:#a9cfd6;--amber:#ffb347;--on-amber:#1b1203}
+.lost{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:0 clamp(16px,7vw,96px);max-width:52rem}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 18px;display:flex;gap:10px;align-items:center}
+.eyebrow::before{content:"";width:28px;height:1px;background:currentColor}
+h1{margin:0;font-family:var(--f-display);font-weight:850;font-variation-settings:"wdth" 128;font-size:clamp(2.6rem,8vw,5.4rem);line-height:.92;letter-spacing:-.01em;color:var(--ink)}
+.lede{margin:22px 0 30px;max-width:30rem;font-size:clamp(1.02rem,2vw,1.2rem);color:var(--ink-dim)}
+.btn{align-self:flex-start;font:600 .95rem/1 var(--f-body);padding:14px 20px;border-radius:4px;text-decoration:none}
+.btn.primary{background:var(--amber);color:var(--on-amber)}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.bubbles{position:fixed;inset:0;pointer-events:none}
+.bubbles span{position:absolute;bottom:-20px;width:10px;height:10px;border-radius:50%;border:1px solid color-mix(in srgb,var(--ink) 55%,transparent);animation:rise 9s linear infinite}
+.bubbles span:nth-child(1){left:72%;animation-delay:0s}
+.bubbles span:nth-child(2){left:76%;width:6px;height:6px;animation-delay:1.6s;animation-duration:7s}
+.bubbles span:nth-child(3){left:70%;width:14px;height:14px;animation-delay:3.1s;animation-duration:11s}
+.bubbles span:nth-child(4){left:80%;width:7px;height:7px;animation-delay:4.4s}
+.bubbles span:nth-child(5){left:74%;width:9px;height:9px;animation-delay:6.2s;animation-duration:8s}
+@keyframes rise{0%{transform:translate(0,0);opacity:0}10%{opacity:.8}50%{transform:translate(-14px,-55vh)}100%{transform:translate(6px,-110vh);opacity:0}}
+@media (prefers-reduced-motion:reduce){.bubbles{display:none}}

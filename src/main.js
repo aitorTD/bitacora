@@ -1,4 +1,5 @@
 import './styles.css';
+import { inject } from '@vercel/analytics';
 import localDives from './data/dives.json';
 import { summarize, sac, statOn, normalizeDive } from './lib/logbook.js';
 
@@ -362,6 +363,10 @@ requestAnimationFrame(tick);
 document.getElementById('ascend').addEventListener('click', function(){
   window.scrollTo({top:0, behavior: reduce ? 'auto' : 'smooth'});
 });
+
+// Visit counts (Vercel Web Analytics: no cookies, nothing personal). Does nothing until it is
+// switched on in the Vercel project.
+inject();
 
 // The 3D scene loads after the content so the text paints first.
 import('./scene.js').then(function(m){ m.initScene(dive); });
