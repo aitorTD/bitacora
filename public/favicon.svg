@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#06182a"/><path d="M10 26c6-5 10-5 16 0s10 5 16 0 10-5 12-2" fill="none" stroke="#5fd6e4" stroke-width="4" stroke-linecap="round"/><text x="32" y="52" text-anchor="middle" font-family="Arial Narrow,Arial,sans-serif" font-weight="800" font-size="20" fill="#ffae2b">40m</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2aa3b8"/><stop offset=".35" stop-color="#0b4a68"/><stop offset="1" stop-color="#020a12"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#sea)"/>
+  <path d="M6 13.5q4.33-3.2 8.67 0t8.67 0t8.67 0t8.67 0t8.67 0t8.67 0" fill="none" stroke="#e6fbfd" stroke-width="3" stroke-linecap="round"/>
+  <path d="M11 15L27.5 45.5L37 42L46.5 28.5H52L54 15" fill="none" stroke="#5fd6e4" stroke-width="6.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="27.5" cy="45.5" r="6.8" fill="#ffae2b" stroke="#020a12" stroke-width="2.6"/>
+</svg>

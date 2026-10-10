@@ -9,15 +9,16 @@ const adminRoute = {
   },
 };
 
-// Share cards need absolute URLs. On Vercel the build knows the project's production domain;
-// locally it falls back to localhost. __SITE_URL__ in the HTML is replaced with it.
+// Share cards need absolute URLs: the official address in production builds, the deployment's own
+// address on previews, localhost locally. __SITE_URL__ in the HTML is replaced with it.
+const SITE = 'https://bitacora-aitor.vercel.app';
 const siteUrl = {
   name: 'site-url',
   transformIndexHtml: {
     order: 'pre',
     handler(html){
-      const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-      return html.replaceAll('__SITE_URL__', host ? `https://${host}` : 'http://localhost:5173');
+      const url = process.env.VERCEL_ENV === 'production' ? SITE : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
+      return html.replaceAll('__SITE_URL__', url);
     },
   },
 };
