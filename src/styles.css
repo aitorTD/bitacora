@@ -1,54 +1,5 @@
 /* Layout: one column of log pages descending over a fixed 3D water column; a dive-computer gauge pinned to the right edge. */
-*,*::before,*::after{box-sizing:border-box}
-/* Night dive is the base palette; the day dive overrides it. JS sets data-dive before first paint. */
-:root{
-  --abyss:#020a12;
-  --ink:#e4f2f3;
-  --ink-dim:#93b6bd;
-  --line:rgba(147,200,210,.22);
-  --panel:rgba(2,15,26,.72);
-  --card:rgba(2,14,24,.86);
-  --tip:rgba(1,8,14,.92);
-  --hud:rgba(1,8,14,.62);
-  --amber:#ffae2b;
-  --on-amber:#1b1203;
-  --cyan:#5fd6e4;
-  --veil-a:rgba(1,8,14,.55);
-  --veil-b:rgba(1,8,14,.25);
-  --glow:rgba(0,25,40,.55);
-  --w0:#0a2a44; --w1:#06182a; --w2:#020a14; --w3:#000308;
-  --f-display:"Anybody","Arial Narrow","Helvetica Neue",system-ui,sans-serif;
-  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  color-scheme:dark;
-}
-:root[data-dive="day"]{
-  --abyss:#0b4e6c;
-  --ink:#062431;
-  --ink-dim:#3d6470;
-  --line:rgba(6,60,80,.2);
-  --panel:rgba(232,247,249,.82);
-  --card:rgba(247,253,254,.92);
-  --tip:rgba(250,254,255,.96);
-  --hud:rgba(240,250,252,.8);
-  --amber:#b05a00;
-  --on-amber:#fff8ee;
-  --cyan:#08788c;
-  --veil-a:rgba(220,248,252,.32);
-  --veil-b:rgba(220,248,252,.1);
-  --glow:rgba(225,250,255,.55);
-  --w0:#2fa6b6; --w1:#0a4b68; --w2:#04192b; --w3:#01060c;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: light){
-  :root:not([data-dive]):not([data-theme="dark"]){
-    --abyss:#0b4e6c; --ink:#062431; --ink-dim:#3d6470; --line:rgba(6,60,80,.2); --panel:rgba(232,247,249,.82); --card:rgba(247,253,254,.92); --tip:rgba(250,254,255,.96); --hud:rgba(240,250,252,.8);
-    --amber:#b05a00; --on-amber:#fff8ee; --cyan:#08788c; --veil-a:rgba(220,248,252,.32); --veil-b:rgba(220,248,252,.1); --glow:rgba(225,250,255,.55);
-    --w0:#2fa6b6; --w1:#0a4b68; --w2:#04192b; --w3:#01060c; color-scheme:light;
-  }
-}
-html{background:var(--abyss)}
-body{background:var(--abyss);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+@import './tokens.css';
 
 .water-fallback{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,var(--w0) 0%,var(--w1) 30%,var(--w2) 62%,var(--w3) 100%)}
 #scene{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:1;opacity:0;transition:opacity .8s ease}

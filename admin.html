@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Bitácora · Panel</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@75..150,300..900&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<script>
+(function(){
+  var r = document.documentElement, m = null;
+  try { m = localStorage.getItem('dive-mode'); } catch (e) {}
+  if (m !== 'day' && m !== 'night') m = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day';
+  r.setAttribute('data-dive', m);
+})();
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/">Bitácora <span>· panel</span></a>
+  <div class="bar-right">
+    <span class="who" id="who" hidden></span>
+    <button class="btn ghost" id="logout" type="button" hidden>Salir</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" id="notConfigured" hidden>
+    <p class="eyebrow">Falta configurar</p>
+    <h1>Conecta Supabase</h1>
+    <p class="sub">Añade <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_ANON_KEY</code> en <code>.env.local</code> (en local) o en las variables de entorno de Vercel, y vuelve a cargar la página.</p>
+  </section>
+
+  <section class="card narrow" id="login" hidden>
+    <p class="eyebrow">Acceso privado</p>
+    <h1>Entrar</h1>
+    <form id="loginForm" novalidate>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required>
+      <label for="password">Contraseña</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p class="error" id="loginError" role="alert" hidden></p>
+      <button class="btn primary" id="loginBtn" type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <div id="panel" hidden>
+    <section class="card">
+      <p class="eyebrow">Importar</p>
+      <h1>Subir inmersiones</h1>
+      <p class="sub">Exporta las inmersiones desde Pro Dive (archivo .uddf) y suéltalas aquí. Las que ya están en la bitácora se saltan solas.</p>
+      <label class="drop" id="drop" for="files">
+        <input id="files" type="file" accept=".uddf,.xml" multiple>
+        <span class="drop-title">Arrastra aquí los archivos .uddf</span>
+        <span class="drop-sub">o pulsa para elegirlos</span>
+      </label>
+      <div id="preview" hidden>
+        <ul class="list" id="previewList"></ul>
+        <div class="actions">
+          <button class="btn primary" id="importBtn" type="button">Importar</button>
+          <button class="btn ghost" id="clearBtn" type="button">Descartar</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Bitácora</p>
+          <h2>Inmersiones guardadas</h2>
+        </div>
+        <span class="count" id="count"></span>
+      </div>
+      <ul class="list" id="logList"></ul>
+      <p class="empty" id="logEmpty" hidden>Todavía no hay inmersiones guardadas. Importa la primera arriba.</p>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script type="module" src="/src/admin.js"></script>
+</body>
+</html>

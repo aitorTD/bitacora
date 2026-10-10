@@ -11,16 +11,24 @@ npm run build     # genera dist/
 npm run preview   # sirve dist/ en local
 ```
 
-## Importar inmersiones
+## Panel privado (/admin)
 
-Exporta las inmersiones desde Pro Dive (formato UDDF) y ejecuta:
+Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf) y borrar inmersiones. Las que ya están se saltan, por id o por hora de inicio.
+
+Configuración, una sola vez:
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. En **SQL Editor**, ejecuta `supabase/schema.sql`.
+3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
+4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
+5. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
+6. Copia `.env.example` a `.env.local` con la URL y la *anon key* (Project Settings → API) y añade esas dos variables en Vercel (Settings → Environment Variables).
+
+También se puede importar desde la terminal a `src/data/dives.json` (copia local):
 
 ```bash
 npm run import -- ~/Downloads/ProDive_16_2026-09-13_1010.uddf
-npm run import -- ~/Downloads/exportaciones-prodive/   # o una carpeta entera
 ```
-
-Se añaden a `src/data/dives.json` y las que ya estaban se saltan, así que puedes volver a importar los mismos archivos sin duplicar nada. Después haz commit y push: Vercel publica la web con los datos nuevos. Los `.uddf` originales no se suben al repo.
 
 ## Estructura
 
@@ -33,6 +41,9 @@ src/styles.css      estilos y temas día/noche
 src/data/dives.json bitácora: las inmersiones importadas
 src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
 src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
+src/lib/supabase.js cliente de Supabase: leer, añadir y borrar inmersiones
+admin.html, src/admin.*  panel privado: login, importar y borrar
+supabase/schema.sql tablas y reglas de acceso
 scripts/            importador de inmersiones y conversor del modelo a low poly
 public/models/      submarinista y máscara nomai (GLB)
 ```
@@ -43,7 +54,6 @@ Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja l
 
 ## Próximos pasos
 
-- Login y panel privado para subir las inmersiones desde el navegador.
 - Sustituir la fauna geométrica por modelos glTF.
 
 ## Easter egg
