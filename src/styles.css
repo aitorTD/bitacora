@@ -25,12 +25,55 @@ p{margin:0}
 .cue span{display:inline-block;animation:sink 2.2s ease-in-out infinite}
 @keyframes sink{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
 
-.album-link{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:10px 14px;border:1px solid var(--line);border-radius:999px;color:var(--ink);text-decoration:none;font:500 .85rem/1 var(--f-body);transition:border-color .15s}
-.album-link:hover{border-color:var(--cyan)}
-.album-link:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-.album-count{font-family:var(--f-mono);font-size:.75rem;color:var(--amber)}
-.album-count:empty{display:none}
-.sample-note{margin-top:14px;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;color:var(--ink-dim)}
+/* The dive computer: the watch turns inside an orange glow, fenced by a dashed ring like a bezel. */
+.device{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(16px,3vw,26px);align-items:center;margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
+.device{--watch-glow:#ff9d2e}
+:root[data-dive="day"] .device{--watch-glow:#ff7a14}
+.device-stage{position:relative;width:clamp(132px,22vw,176px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle closest-side,color-mix(in srgb,var(--watch-glow) 80%,transparent) 0%,color-mix(in srgb,var(--watch-glow) 50%,transparent) 42%,color-mix(in srgb,var(--watch-glow) 18%,transparent) 74%,transparent 98%)}
+.device-stage::before{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--amber) 85%,transparent);animation:bezel 90s linear infinite}
+@keyframes bezel{to{transform:rotate(360deg)}}
+.device-stage canvas{position:absolute;inset:7%;width:86%;height:86%;display:block;opacity:0;transition:opacity .6s ease}
+.device-stage canvas.ready{opacity:1}
+.device-txt{display:flex;flex-direction:column;min-width:0}
+.device-kicker{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.device-name{margin-top:6px;font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 116;font-size:clamp(1.45rem,3.6vw,1.95rem);line-height:1;letter-spacing:-.01em;text-wrap:balance}
+.device-meta{margin-top:7px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.04em;color:var(--ink-dim)}
+.device-line{margin-top:12px;font-size:.92rem;color:var(--ink-dim);max-width:24rem}
+.device.no-3d .device-stage::after{content:"⌚";position:absolute;inset:0;display:grid;place-items:center;font-size:2.4rem}
+
+/* The way into the species album: a wide card with its progress, not just a link. */
+.album-cta{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;margin-top:22px;padding:16px 18px;border-radius:8px;
+  border:1px solid color-mix(in srgb,var(--amber) 50%,transparent);background:color-mix(in srgb,var(--amber) 9%,transparent);color:var(--ink);text-decoration:none;transition:background .2s,border-color .2s}
+.album-cta:hover{background:color-mix(in srgb,var(--amber) 16%,transparent);border-color:var(--amber)}
+.album-cta:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+.album-cta-ico{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--amber);color:var(--on-amber)}
+.album-cta-ico svg{width:22px;height:22px}
+.album-cta-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.album-cta-title{font-family:var(--f-display);font-weight:780;font-variation-settings:"wdth" 114;font-size:1.25rem;line-height:1.05}
+.album-cta-sub{font-size:.82rem;color:var(--ink-dim);line-height:1.3}
+.album-cta-bar{margin-top:7px;height:4px;border-radius:2px;background:color-mix(in srgb,var(--amber) 18%,transparent);overflow:hidden}
+.album-cta-bar i{display:block;height:100%;width:0;border-radius:2px;background:var(--amber);transition:width .8s ease}
+.album-cta-count{font-family:var(--f-display);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.album-cta-count b{font-weight:800;font-variation-settings:"wdth" 110;font-size:1.7rem;line-height:1;color:var(--amber)}
+.album-cta-count small{font-family:var(--f-mono);font-size:.75rem;color:var(--ink-dim);margin-left:2px}
+.album-cta-arrow{font-size:1.2rem;color:var(--amber);transition:transform .2s}
+.album-cta:hover .album-cta-arrow{transform:translateX(4px)}
+@media (max-width:520px){
+  .device{gap:14px}
+  .device-stage{width:116px}
+  .device-line{font-size:.85rem}
+  .album-cta{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"ico title count" "ico sub sub" "bar bar bar";gap:2px 12px;padding:14px}
+  .album-cta-main{display:contents}
+  .album-cta-ico{grid-area:ico;width:40px;height:40px}
+  .album-cta-title{grid-area:title;align-self:end;font-size:1.12rem}
+  .album-cta-sub{grid-area:sub;align-self:start}
+  .album-cta-bar{grid-area:bar;margin-top:12px}
+  .album-cta-count{grid-area:count;align-self:end}
+  .album-cta-count b{font-size:1.4rem}
+  .album-cta-arrow{display:none}
+}
+@media (prefers-reduced-motion:reduce){.device-stage::before{animation:none}.album-cta-bar i{transition:none}}
 
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 16px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
 .stat{min-width:0}

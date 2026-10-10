@@ -30,8 +30,11 @@ async function loadLogbook(){
     // how much of the species album is filled in, shown on the link to it
     Promise.all([listSeen(), import('./album/species.js')]).then(([rows, m]) => {
       const ids = new Set(m.SPECIES.map(s => s.id)), n = rows.filter(r => ids.has(r.species_id)).length;
-      document.getElementById('albumCount').textContent = n + ' / ' + m.SPECIES.length;
-      document.getElementById('navAlbumCount').textContent = n + '/' + m.SPECIES.length;
+      const total = m.SPECIES.length, count = document.getElementById('albumCount'), bar = document.getElementById('albumBar');
+      count.innerHTML = '<b>' + n + '</b><small>/' + total + '</small>'; count.hidden = false;
+      count.setAttribute('aria-label', n + ' de ' + total + ' especies vistas');
+      bar.firstChild.style.width = Math.max(3, n / total * 100) + '%'; bar.hidden = false;
+      document.getElementById('navAlbumCount').textContent = n + '/' + total;
     }).catch(() => {});
     const [dives, certs] = await Promise.all([listDives(), listCerts().catch(() => [])]);
     return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, certs, settings: DEFAULTS };
@@ -373,6 +376,19 @@ document.getElementById('ascend').addEventListener('click', function(){
 // Visit counts (Vercel Web Analytics: no cookies, nothing personal). Does nothing until it is
 // switched on in the Vercel project.
 inject();
+
+// The dive computer turning in its ring, loaded when its panel gets close.
+(function(){
+  var canvas = document.getElementById('watch');
+  if (!canvas || !('IntersectionObserver' in window)) return;
+  var io = new IntersectionObserver(function(entries){
+    if (!entries[0].isIntersecting) return;
+    io.disconnect();
+    import('./watch.js').then(function(m){ return m.mountWatch(canvas, { reduce: reduce }); })
+      .catch(function(err){ console.warn('No se pudo cargar el reloj', err); canvas.closest('.device').classList.add('no-3d'); });
+  }, { rootMargin: '600px 0px' });
+  io.observe(canvas);
+})();
 
 // The 3D scene loads after the content so the text paints first.
 import('./scene.js').then(function(m){ m.initScene(dive); });

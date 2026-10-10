@@ -76,8 +76,25 @@
     <h2 id="h-stats">Lo que llevo buceado</h2>
     <p class="sub">Sumado inmersión a inmersión, tal y como lo registra el reloj.</p>
     <div class="stats" id="stats"></div>
-    <p class="sample-note">Registrado con Pro Dive en un Apple Watch Ultra 2</p>
-    <a class="album-link" href="/album"><span>Álbum de especies</span><span class="album-count" id="albumCount"></span><span aria-hidden="true">→</span></a>
+    <div class="device">
+      <div class="device-stage" aria-hidden="true"><canvas id="watch"></canvas></div>
+      <div class="device-txt">
+        <p class="device-kicker">Mi ordenador de buceo</p>
+        <p class="device-name">Apple Watch Ultra 2</p>
+        <p class="device-meta">Titanio negro · Pro Dive</p>
+        <p class="device-line">Cada inmersión, cada perfil y cada número de esta bitácora sale de mi muñeca.</p>
+      </div>
+    </div>
+    <a class="album-cta" href="/album">
+      <span class="album-cta-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.4 5.2 8 4.6 4 4.8v13.4c4-.2 6.4.4 8 1.7 1.6-1.3 4-1.9 8-1.7V4.8c-4-.2-6.4.4-8 1.7z"/><path d="M12 6.5v13.4"/></svg></span>
+      <span class="album-cta-main">
+        <span class="album-cta-title">Álbum de especies</span>
+        <span class="album-cta-sub">Cromos en 3D de lo que me voy cruzando bajo el agua</span>
+        <span class="album-cta-bar" id="albumBar" hidden><i></i></span>
+      </span>
+      <span class="album-cta-count" id="albumCount" hidden></span>
+      <span class="album-cta-arrow" aria-hidden="true">→</span>
+    </a>
   </section>
 
   <section class="log panel" data-depth="14" aria-labelledby="h-cert">
@@ -116,7 +133,7 @@
       <button class="btn primary" id="ascend" type="button">Subir a la superficie</button>
       <a class="btn" href="/album">Álbum de especies</a>
     </div>
-    <p class="credits">Modelo 3D del submarinista: <a href="https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831" target="_blank" rel="noopener">«Diver»</a> de <a href="https://sketchfab.com/ucdavisterc" target="_blank" rel="noopener">ucdavisterc</a>, convertido a low poly. Al fondo, <a href="https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7" target="_blank" rel="noopener">«Outer Wilds - Nomai Mask scan»</a> de <a href="https://sketchfab.com/adamw1806" target="_blank" rel="noopener">09williamsad</a>, simplificado. Ambos con licencia <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Y si miras al horizonte desde la superficie: el barco de Beedle de <em>The Legend of Zelda: The Wind Waker</em> (© Nintendo), modelo extraído por AJD-262.</p>
+    <p class="credits">Modelo 3D del submarinista: <a href="https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831" target="_blank" rel="noopener">«Diver»</a> de <a href="https://sketchfab.com/ucdavisterc" target="_blank" rel="noopener">ucdavisterc</a>, convertido a low poly. Al fondo, <a href="https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7" target="_blank" rel="noopener">«Outer Wilds - Nomai Mask scan»</a> de <a href="https://sketchfab.com/adamw1806" target="_blank" rel="noopener">09williamsad</a>, simplificado. El reloj es <a href="https://sketchfab.com/3d-models/apple-watch-ultra-made-in-blender-polygonmbw-bd089526a71c4517956c94f32a081210" target="_blank" rel="noopener">«Apple Watch Ultra Made In Blender»</a> de <a href="https://sketchfab.com/PolygonMBW" target="_blank" rel="noopener">PolygonMBW</a>, pintado en titanio negro. Los tres con licencia <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Y si miras al horizonte desde la superficie: el barco de Beedle de <em>The Legend of Zelda: The Wind Waker</em> (© Nintendo), modelo extraído por AJD-262.</p>
   </section>
 </main>
 
