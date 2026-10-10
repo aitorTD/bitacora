@@ -177,10 +177,14 @@ function renderLogbook(dives, settings){
     if (dv.tank && dv.tank.start != null) tile('tank', icoTank(dv.tank.end / dv.tank.start), dv.tank.start + '→' + dv.tank.end, '', 'Botella · bar', fmt(dv.tank.volume, 0) + ' L · ' + gasName(dv.tank.gas));
     if (c != null) tile('sac', icoBubbles(), fmt(c), 'L/min', 'Consumo (SAC)');
     var kicker = (dv.number != null ? 'Nº ' + dv.number + ' · ' : '') + dateLabel(dv.start, true);
+    var training = dv.type === 'training';
+    var badge = training
+      ? '<span class="dive-type"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.5"/></svg>Entrenamiento</span>'
+      : '<span class="dive-type"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 9c1.6-2 3.3-2 4.9 0s3.3 2 4.9 0 2.6-1.4 3.2-.6"/></svg>Recreativa</span>';
     var card = document.createElement('article');
-    card.className = 'dive';
+    card.className = 'dive ' + (training ? 'is-training' : 'is-recreational');
     card.innerHTML =
-      '<header class="dive-head"><p class="dive-kicker"><time datetime="' + esc(dv.start) + '">' + esc(kicker) + '</time></p>' +
+      '<header class="dive-head"><p class="dive-kicker"><time datetime="' + esc(dv.start) + '">' + esc(kicker) + '</time>' + badge + '</p>' +
       '<h3>' + esc(dv.site.name) + '</h3>' +
       (place ? '<a class="dive-place" href="https://www.openstreetmap.org/?mlat=' + dv.site.lat + '&amp;mlon=' + dv.site.lon + '#map=14/' + dv.site.lat + '/' + dv.site.lon + '" target="_blank" rel="noopener">' + place + '</a>' : '') + '</header>' +
       '<div class="profile">' + svg + '<div class="tip" hidden></div></div>' +

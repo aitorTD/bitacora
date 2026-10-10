@@ -36,6 +36,12 @@ export async function setDiveStats(dive, statsOff, clearNoSac = false){
   if (error) throw error;
 }
 
+export async function setDiveType(dive, type){
+  const { hidden, noSac, ...data } = dive;
+  const { error } = await supabase.from('dives').update({ data: { ...data, type } }).eq('id', dive.id);
+  if (error) throw error;
+}
+
 export async function getSettings(){
   const { data, error } = await supabase.from('settings').select('data').eq('id', 1).maybeSingle();
   if (error) throw error;

@@ -67,6 +67,11 @@ function readDive(d, ctx){
   const tank = (d.tankdata ?? [])[0];
   const mix = tank ? (tank.link ?? []).map(l => ctx.mixes.get(l.ref)).find(Boolean) : null;
   const notes = (after.notes?.para ?? []).map(text).filter(Boolean).join('\n');
+  // UDDF can carry the purpose of the dive; Pro Dive does not export it today, so the type can
+  // also come from the notes, and in any case be set by hand in the admin
+  const purpose = text(before.purpose);
+  const type = /learning|teaching|proficiency|training/i.test(purpose) || /entren|training|pr[aá]ctica|curso/i.test(notes) ? 'training'
+    : purpose ? 'recreational' : null;
   const start = text(before.datetime);
 
   return {
@@ -88,6 +93,7 @@ function readDive(d, ctx){
       o2: mix?.o2 ?? 0.21,
     } : null,
     notes,
+    type,
     computer,
     source: ctx.generator || null,
     profile: downsample(samples, PROFILE_STEP, maxDepth),

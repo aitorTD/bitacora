@@ -1,5 +1,5 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives, statOn } from './lib/logbook.js';
 
@@ -77,6 +77,7 @@ function renderSaved(){
   $('count').textContent = saved.length ? `${saved.length} ${saved.length === 1 ? 'inmersión' : 'inmersiones'}` : '';
   $('logEmpty').hidden = saved.length > 0;
   $('logList').innerHTML = saved.map(d => row(d,
+    `<div class="seg" role="group" aria-label="Tipo de inmersión"><button type="button" data-type="recreational" aria-pressed="${d.type !== 'training'}">Recreativa</button><button type="button" data-type="training" aria-pressed="${d.type === 'training'}">Entrenamiento</button></div>` +
     sw('web', !d.hidden, 'Web', 'Mostrar esta inmersión en la web') +
     '<button class="btn danger small" type="button" data-act="ask">Borrar</button>',
     `<div class="row-stats" role="group" aria-label="Estadísticas en las que cuenta">${STAT_LABELS.map(([k, l]) =>
@@ -86,6 +87,15 @@ function renderSaved(){
 $('logList').addEventListener('click', async e => {
   const btn = e.target.closest('button'); if (!btn) return;
   const li = btn.closest('.row'), side = li.querySelector('.row-side'), id = li.dataset.id;
+  if (btn.dataset.type){
+    const d = saved.find(x => x.id === id); if (!d || btn.getAttribute('aria-pressed') === 'true') return;
+    const type = btn.dataset.type, group = btn.parentElement;
+    group.querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', String(b === btn)); b.disabled = true; });
+    try { await setDiveType(d, type); d.type = type; toast(type === 'training' ? 'Marcada como entrenamiento' : 'Marcada como recreativa'); }
+    catch (err){ toast(explain(err), true); }
+    renderSaved();
+    return;
+  }
   if (btn.dataset.stat){
     const d = saved.find(x => x.id === id); if (!d) return;
     const key = btn.dataset.stat, on = btn.getAttribute('aria-pressed') !== 'true';

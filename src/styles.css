@@ -34,6 +34,15 @@ p{margin:0}
 
 .dives{display:flex;flex-direction:column;gap:14px;margin-top:20px}
 .dive{border:1px solid var(--line);border-radius:4px;background:var(--card);padding:18px 18px 16px;min-width:0;display:flex;flex-direction:column;gap:14px}
+/* Recreational dives keep the sea colour; training dives switch the whole card to amber, so the
+   profile, the graphics and the badge all read as a different kind of dive at a glance. */
+.dive-kicker{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.dive-type{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 6px;border-radius:999px;border:1px solid currentColor;font-size:.62rem;letter-spacing:.1em;color:var(--cyan)}
+.dive-type svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.dive.is-training{--cyan:var(--amber);border-color:var(--amber);background:linear-gradient(135deg,color-mix(in srgb,var(--amber) 9%,transparent),transparent 55%),var(--card)}
+.dive.is-training .dive-type{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
+.dive.is-training .dstat-g .g-dot{fill:var(--ink)}
+.dive.is-training .dstat-g .g-mark{stroke:var(--ink)}
 .dive-head{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dive-kicker{margin:0;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
 .dive-head h3{margin:0;font-family:var(--f-display);font-weight:740;font-variation-settings:"wdth" 110;font-size:1.45rem;line-height:1.05;text-wrap:balance}

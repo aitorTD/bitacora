@@ -77,6 +77,11 @@ input:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
 .switch.big .knob{width:40px;height:22px}
 .switch.big .knob::after{width:18px;height:18px}
 .switch.big[aria-checked="true"] .knob::after{transform:translateX(18px)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;gap:2px}
+.seg button{font:500 .72rem/1 var(--f-mono);letter-spacing:.04em;padding:6px 9px;border:0;border-radius:999px;background:transparent;color:var(--ink-dim);cursor:pointer}
+.seg button[aria-pressed="true"][data-type="recreational"]{background:var(--cyan);color:var(--on-cyan)}
+.seg button[aria-pressed="true"][data-type="training"]{background:var(--amber);color:var(--on-amber)}
+.seg button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .row-stats{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:6px}
 .pill{font:500 .72rem/1 var(--f-mono);letter-spacing:.04em;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer;text-decoration:line-through;text-decoration-color:var(--ink-dim)}
 .pill[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:var(--on-cyan);text-decoration:none}
