@@ -34,7 +34,7 @@ export function summarize(dives){
   const deepest = by(d => d.maxDepth, (b, a) => b > a);
   const longest = by(d => d.duration, (b, a) => b > a);
   const coldest = by(d => d.minTemp, (b, a) => b < a);
-  const sacs = dives.map(sac).filter(v => v != null);
+  const sacs = dives.filter(d => !d.noSac).map(sac).filter(v => v != null);   // dives marked as training are left out
   return {
     count: dives.length,
     totalTime,

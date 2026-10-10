@@ -1,5 +1,5 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, getSettings, saveSettings } from './lib/supabase.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives } from './lib/logbook.js';
 
@@ -21,6 +21,7 @@ function toast(msg, isError = false){
 function explain(err){
   const m = (err && (err.message || err.error_description)) || String(err);
   if (/invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if (/settings|hidden|no_sac/i.test(m)) return 'Falta preparar los ajustes en Supabase: ejecuta supabase/migrations/002_ajustes.sql en el SQL Editor.';
   if (/could not find the table|schema cache|relation .* does not exist/i.test(m)) return 'La tabla de inmersiones aún no existe en Supabase. Ejecuta supabase/schema.sql en el SQL Editor y vuelve a probar.';
   if (/email not confirmed/i.test(m)) return 'Este email aún no está confirmado en Supabase.';
   if (/row-level security|permission denied|violates row/i.test(m)) return 'Tu usuario no tiene permiso para cambiar la bitácora. Añádelo a la tabla admins (ver supabase/schema.sql).';
@@ -39,7 +40,7 @@ function show(view){
 async function enterPanel(session){
   $('who').textContent = session.user.email; $('who').hidden = false; $('logout').hidden = false;
   show('panel');
-  await refresh();
+  await Promise.all([refresh(), loadSettings()]);
 }
 function leavePanel(){
   $('who').hidden = true; $('logout').hidden = true;
@@ -66,15 +67,33 @@ function row(d, side){
   </li>`;
 }
 
+const sw = (act, on, label, title) =>
+  `<button class="switch" type="button" role="switch" aria-checked="${on}" data-act="${act}" title="${esc(title)}"><span class="knob" aria-hidden="true"></span><span class="sw-label">${label}</span></button>`;
+
 function renderSaved(){
   $('count').textContent = saved.length ? `${saved.length} ${saved.length === 1 ? 'inmersión' : 'inmersiones'}` : '';
   $('logEmpty').hidden = saved.length > 0;
-  $('logList').innerHTML = saved.map(d => row(d, '<button class="btn danger small" type="button" data-act="ask">Borrar</button>')).join('');
+  $('logList').innerHTML = saved.map(d => row(d,
+    sw('web', !d.hidden, 'Web', 'Mostrar esta inmersión en la web') +
+    sw('sac', !d.noSac, 'SAC', 'Contar esta inmersión en el consumo de aire') +
+    '<button class="btn danger small" type="button" data-act="ask">Borrar</button>')).join('');
 }
 
 $('logList').addEventListener('click', async e => {
   const btn = e.target.closest('button'); if (!btn) return;
   const li = btn.closest('.row'), side = li.querySelector('.row-side'), id = li.dataset.id;
+  if (btn.dataset.act === 'web' || btn.dataset.act === 'sac'){
+    const d = saved.find(x => x.id === id); if (!d) return;
+    const on = btn.getAttribute('aria-checked') !== 'true';
+    const patch = btn.dataset.act === 'web' ? { hidden: !on } : { noSac: !on };
+    btn.setAttribute('aria-checked', String(on)); btn.disabled = true;
+    try {
+      await setDiveFlags(id, patch); Object.assign(d, patch);
+      toast(btn.dataset.act === 'web' ? (on ? 'Se muestra en la web' : 'Oculta en la web') : (on ? 'Cuenta en el consumo de aire' : 'Fuera del consumo de aire'));
+    } catch (err){ btn.setAttribute('aria-checked', String(!on)); toast(explain(err), true); }
+    btn.disabled = false;
+    return;
+  }
   if (btn.dataset.act === 'ask'){
     side.innerHTML = '<span class="confirm">¿Borrar?</span><button class="btn danger small" type="button" data-act="yes">Sí, borrar</button><button class="btn small" type="button" data-act="no">No</button>';
   } else if (btn.dataset.act === 'no'){
@@ -84,6 +103,43 @@ $('logList').addEventListener('click', async e => {
     try { await deleteDive(id); toast('Inmersión borrada'); await refresh(); }
     catch (err){ toast(explain(err), true); renderSaved(); }
   }
+});
+
+/* ---------- what the web shows ---------- */
+const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: true, minTemp: true, sac: true }, showDives: true };
+const OPTIONS = [
+  ['count', 'Número de inmersiones'],
+  ['time', 'Tiempo bajo el agua', 'También la inmersión más larga en Récords'],
+  ['maxDepth', 'Profundidad máxima', 'También la inmersión más profunda en Récords'],
+  ['avgDepth', 'Profundidad media'],
+  ['minTemp', 'Agua más fría', 'También en Récords'],
+  ['sac', 'Consumo de aire (SAC)', 'La media y el dato de cada ficha'],
+  ['showDives', 'Fichas de inmersión', 'La sección con el perfil de cada inmersión'],
+];
+let settings = structuredClone(DEFAULTS);
+
+async function loadSettings(){
+  try {
+    const s = await getSettings();
+    settings = { stats: { ...DEFAULTS.stats, ...(s && s.stats) }, showDives: !(s && s.showDives === false) };
+  } catch (err){ toast(explain(err), true); }
+  renderSettings();
+}
+const isOn = key => key === 'showDives' ? settings.showDives : settings.stats[key];
+function renderSettings(){
+  $('switches').innerHTML = OPTIONS.map(([key, label, hint]) => `<li class="opt">
+    <div class="opt-text"><span class="opt-label" id="opt-${key}">${label}</span>${hint ? `<span class="opt-hint">${hint}</span>` : ''}</div>
+    <button class="switch big" type="button" role="switch" aria-checked="${isOn(key)}" aria-labelledby="opt-${key}" data-key="${key}"><span class="knob" aria-hidden="true"></span></button>
+  </li>`).join('');
+}
+$('switches').addEventListener('click', async e => {
+  const btn = e.target.closest('.switch'); if (!btn) return;
+  const key = btn.dataset.key, on = !isOn(key), before = structuredClone(settings);
+  if (key === 'showDives') settings.showDives = on; else settings.stats[key] = on;
+  btn.setAttribute('aria-checked', String(on)); btn.disabled = true;
+  try { await saveSettings(settings); toast('Guardado. Se verá al recargar la web.'); }
+  catch (err){ settings = before; renderSettings(); toast(explain(err), true); }
+  btn.disabled = false;
 });
 
 /* ---------- import ---------- */

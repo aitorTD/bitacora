@@ -431,6 +431,82 @@ export function initScene(dive){
   addCaustics(wallMat);
   [-1, 1].forEach(side => scene.add(new THREE.Mesh(wallGeometry(side), wallMat)));
 
+  // a small low-poly octopus near the surface: jet pulses, tentacles that trail and spread
+  const octo = (() => {
+    const group = new THREE.Group();
+    const skin = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .7, metalness: 0, side: THREE.DoubleSide });
+    const top = C('#b9442a'), belly = C('#f39a63'), spot = C('#8f2f1f');
+    // mantle
+    const mg = new THREE.IcosahedronGeometry(1, 1).toNonIndexed();
+    { const p = mg.attributes.position, col = new Float32Array(p.count * 3), v = new THREE.Vector3();
+      for (let i = 0; i < p.count; i += 3){
+        let cy = 0; for (let k = 0; k < 3; k++){ v.fromBufferAttribute(p, i + k); cy += v.y / 3; }
+        tmpC.copy(belly).lerp(top, smoothstep(-.6, .7, cy));
+        if (hash2(i, 7) > .82 && cy > 0) tmpC.lerp(spot, .55);
+        for (let k = 0; k < 3; k++){
+          v.fromBufferAttribute(p, i + k);
+          v.set(v.x * .78, v.y * 1.18 + .55 + Math.max(0, v.y) * .25, v.z * .82);
+          p.setXYZ(i + k, v.x, v.y, v.z); col.set([tmpC.r, tmpC.g, tmpC.b], (i + k) * 3);
+        }
+      }
+      mg.setAttribute('color', new THREE.BufferAttribute(col, 3)); mg.computeVertexNormals(); }
+    const mantle = new THREE.Mesh(mg, skin); group.add(mantle);
+    // eyes, on the sides at the base of the mantle
+    const eyeW = new THREE.MeshStandardMaterial({ color: '#f4efe2', flatShading: true, roughness: .4 });
+    const eyeB = new THREE.MeshBasicMaterial({ color: '#141414' });
+    for (const sx of [-1, 1]){
+      const e = new THREE.Mesh(new THREE.IcosahedronGeometry(.2, 0), eyeW); e.position.set(sx * .58, .05, .5); mantle.add(e);
+      const pupil = new THREE.Mesh(new THREE.BoxGeometry(.2, .06, .06), eyeB); pupil.position.set(sx * .64, .05, .66); pupil.rotation.y = sx * .5; mantle.add(pupil);
+    }
+    // tentacles
+    const N = 11, RAD = 5, L = 1.7;
+    const tentacles = [];
+    for (let i = 0; i < 8; i++){
+      const a = (i + .5) / 8 * Math.PI * 2;
+      const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array((N * RAD + 1) * 3), col = new Float32Array((N * RAD + 1) * 3), idx = [];
+      for (let k = 0; k < N; k++) for (let j = 0; j < RAD; j++){
+        const c = tmpC.copy(top).lerp(belly, j === 2 || j === 3 ? .75 : .15 + .25 * k / N);   // suckers side lighter
+        col.set([c.r, c.g, c.b], (k * RAD + j) * 3);
+        if (k < N - 1){ const a0 = k * RAD + j, a1 = k * RAD + (j + 1) % RAD, b0 = a0 + RAD, b1 = a1 + RAD; idx.push(a0, b0, a1, a1, b0, b1); }
+      }
+      const tipI = N * RAD; col.set([belly.r, belly.g, belly.b], tipI * 3);
+      for (let j = 0; j < RAD; j++) idx.push((N - 1) * RAD + j, tipI, (N - 1) * RAD + (j + 1) % RAD);
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx);
+      const mesh = new THREE.Mesh(geo, skin); mesh.frustumCulled = false; group.add(mesh);
+      tentacles.push({ mesh, out, axis: new THREE.Vector3().crossVectors(out, new THREE.Vector3(0, -1, 0)).normalize(), root: out.clone().multiplyScalar(.5).add(new THREE.Vector3(0, -.05, 0)), ph: rand() * 6.28 });
+    }
+    const dir = new THREE.Vector3(), c = new THREE.Vector3(), nrm = new THREE.Vector3(), q = new THREE.Quaternion(), base = new THREE.Vector3(), tmp = new THREE.Vector3();
+    function shapeTentacles(t, pulse){
+      for (const T of tentacles){
+        const p = T.mesh.geometry.attributes.position;
+        // spread wide while relaxed, drawn together and trailing during the jet
+        base.copy(T.out).multiplyScalar(mix(.75, .18, pulse)).add(tmp.set(0, -1, 0)).normalize();
+        dir.copy(base); c.copy(T.root);
+        let ang = 0;
+        for (let k = 0; k < N; k++){
+          const f = k / (N - 1), r = .2 * Math.pow(1 - f, .9) + .02;
+          nrm.crossVectors(dir, T.axis).normalize();
+          for (let j = 0; j < RAD; j++){
+            const th = j / RAD * Math.PI * 2;
+            tmp.copy(nrm).multiplyScalar(Math.cos(th) * r).addScaledVector(T.axis, Math.sin(th) * r).add(c);
+            p.setXYZ(k * RAD + j, tmp.x, tmp.y, tmp.z);
+          }
+          // curl outward toward the tip, a travelling wave along the arm, less of both during the jet
+          ang = (mix(.34, .08, pulse) * Math.pow(f, 1.3) + Math.sin(t * 1.7 - f * 4 + T.ph) * mix(.16, .05, pulse) * f);
+          q.setFromAxisAngle(T.axis, -ang); dir.applyQuaternion(q).normalize();
+          c.addScaledVector(dir, L / (N - 1));
+        }
+        p.setXYZ(N * RAD, c.x, c.y, c.z);
+        p.needsUpdate = true;
+      }
+    }
+    group.scale.setScalar(small ? .28 : .32);
+    scene.add(group);
+    return { group, mantle, shapeTentacles, center: new THREE.Vector3(small ? -1.9 : -4.6, -2.7, small ? -2.2 : -1.2), heading: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3() };
+  })();
+
   /* ---------- Sand floor ---------- */
   const floorY = (x, z) => -44 + 1.3 * fbm(x * .06, z * .06) + .3 * fbm(x * .35 + 4, z * .35, 3)
     + .07 * Math.sin(x * .45 + z * 2.1 + 1.6 * fbm(x * .1, z * .1, 2)) + 9 * smoothstep(7, 15, Math.abs(x));
@@ -814,6 +890,19 @@ export function initScene(dive){
 
     // fauna near the camera only
     schools.forEach(s => { const near = Math.abs(s.y - y) < 22; s.mesh.visible = near; if (near) updateSchool(s, t); });
+    // octopus: a jet every few seconds, then a slow glide while the arms spread again
+    if (Math.abs(y + 3.4) < 16){
+      octo.group.visible = true;
+      const cyc = (t / 3.4) % 1, pulse = cyc < .25 ? Math.sin(cyc / .25 * Math.PI / 2) : Math.max(0, 1 - (cyc - .25) / .45) ** 2;
+      const a = t * .09, R = small ? .5 : 1;
+      octo.group.position.set(octo.center.x + Math.cos(a) * R, octo.center.y + Math.sin(t * .23) * .35 + pulse * .08, octo.center.z + Math.sin(a) * R * .6);
+      // mantle leads, tipped into the direction of travel
+      octo.heading.set(-Math.sin(a), .25, Math.cos(a) * .6).normalize();
+      octo.up.copy(octo.heading).multiplyScalar(.55 + .25 * pulse).add(tmpV.set(0, 1, 0)).normalize();
+      octo.group.quaternion.setFromUnitVectors(tmpV.set(0, 1, 0), octo.up);
+      octo.mantle.scale.set(1 - .12 * pulse, 1 + .08 * pulse, 1 - .12 * pulse);
+      octo.shapeTentacles(t, pulse);
+    } else octo.group.visible = false;
     groupers.forEach(g => {
       const a = t * g.w + g.ph;
       g.m.position.set(g.cx + Math.cos(a) * g.r, g.cy + Math.sin(a * 1.7) * .4, g.cz + Math.sin(a) * g.r * .6);

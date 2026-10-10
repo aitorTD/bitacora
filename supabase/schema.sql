@@ -30,6 +30,8 @@ create policy "admins add dives"    on public.dives for insert to authenticated 
 create policy "admins change dives" on public.dives for update to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "admins delete dives" on public.dives for delete to authenticated using (public.is_admin());
 
+-- for the settings set from the admin (hidden dives, SAC, statistics), also run migrations/002_ajustes.sql
+
 -- make the API see the new tables straight away
 notify pgrst, 'reload schema';
 

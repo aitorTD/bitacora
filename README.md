@@ -13,7 +13,7 @@ npm run preview   # sirve dist/ en local
 
 ## Panel privado (/admin)
 
-Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf) y borrar inmersiones. Las que ya están se saltan, por id o por hora de inicio.
+Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web, sacarlas del cálculo de consumo (SAC) y elegir qué estadísticas se muestran. Las que ya están se saltan, por id o por hora de inicio.
 
 Configuración, una sola vez:
 
@@ -21,8 +21,9 @@ Configuración, una sola vez:
 2. En **SQL Editor**, ejecuta `supabase/schema.sql`.
 3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
 4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
-5. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
-6. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
+5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web).
+6. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
+7. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
 
 También se puede importar desde la terminal a `src/data/dives.json` (copia local):
 

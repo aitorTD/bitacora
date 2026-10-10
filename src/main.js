@@ -21,41 +21,53 @@ function coords(site){
 }
 
 /* ---------- Logbook: from Supabase when it is configured, else the bundled dives.json ---------- */
-async function loadDives(){
-  if (!import.meta.env.VITE_SUPABASE_URL) return localDives;
+const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: true, minTemp: true, sac: true }, showDives: true };
+async function loadLogbook(){
+  if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, settings: DEFAULTS };
   try {
-    const { listDives } = await import('./lib/supabase.js');
-    const dives = await listDives();
-    return dives.length ? dives : localDives;
+    const { listDives, getSettings } = await import('./lib/supabase.js');
+    const [dives, settings] = await Promise.all([listDives(), getSettings().catch(() => null)]);
+    return { dives: dives.length ? dives.filter(d => !d.hidden) : localDives, settings: mergeSettings(settings) };
   } catch (err){
     console.warn('No se pudieron leer las inmersiones de Supabase; uso la copia local.', err);
-    return localDives;
+    return { dives: localDives, settings: DEFAULTS };
   }
 }
-loadDives().then(renderLogbook);
+function mergeSettings(s){ return { stats: { ...DEFAULTS.stats, ...(s && s.stats) }, showDives: s && s.showDives === false ? false : true }; }
+loadLogbook().then(({ dives, settings }) => renderLogbook(dives, settings));
 
-function renderLogbook(dives){
+function removeSection(headingId){
+  var h = document.getElementById(headingId), sec = h && h.closest('section');
+  if (sec) sec.remove();
+  if (typeof computeAnchors === 'function') computeAnchors();
+}
+
+function renderLogbook(dives, settings){
+  var show = settings.stats;
   /* ---------- Logbook summary ---------- */
   var sum = summarize(dives);
   var statsEl = document.getElementById('stats');
   if (sum){
     var tt = hoursMin(sum.totalTime);
     var tiles = [
-      [String(sum.count), '', sum.count === 1 ? 'inmersión importada' : 'inmersiones importadas'],
-      [tt[0], tt[1], 'bajo el agua'],
-      [fmt(sum.maxDepth), 'm', 'profundidad máxima'],
-      [fmt(sum.avgDepth), 'm', 'profundidad media'],
-      [sum.minTemp != null ? fmt(sum.minTemp) : '–', '°C', 'agua más fría'],
-      [sum.sac != null ? fmt(sum.sac) : '–', 'L/min', 'consumo de aire en superficie']
-    ];
+      ['count', String(sum.count), '', sum.count === 1 ? 'inmersión registrada' : 'inmersiones registradas'],
+      ['time', tt[0], tt[1], 'bajo el agua'],
+      ['maxDepth', fmt(sum.maxDepth), 'm', 'profundidad máxima'],
+      ['avgDepth', fmt(sum.avgDepth), 'm', 'profundidad media'],
+      ['minTemp', sum.minTemp != null ? fmt(sum.minTemp) : '–', '°C', 'agua más fría'],
+      ['sac', sum.sac != null ? fmt(sum.sac) : '–', 'L/min', 'consumo de aire en superficie']
+    ].filter(function(t){ return show[t[0]] && !(t[0] === 'sac' && sum.sac == null); }).map(function(t){ return t.slice(1); });
     statsEl.innerHTML = tiles.map(function(s){
       return '<div class="stat"><b>' + s[0] + (s[1] ? '<small>' + s[1] + '</small>' : '') + '</b><span>' + s[2] + '</span></div>';
     }).join('');
     var rec = [
-      ['Inmersión más profunda', sum.deepest, fmt(sum.deepest.maxDepth), 'm'],
-      ['Inmersión más larga', sum.longest, String(Math.round(sum.longest.duration / 60)), 'min'],
-      ['Agua más fría', sum.coldest, sum.coldest && sum.coldest.minTemp != null ? fmt(sum.coldest.minTemp) : '–', '°C']
-    ].filter(function(r){ return r[1]; });
+      ['maxDepth', 'Inmersión más profunda', sum.deepest, fmt(sum.deepest.maxDepth), 'm'],
+      ['time', 'Inmersión más larga', sum.longest, String(Math.round(sum.longest.duration / 60)), 'min'],
+      ['minTemp', 'Agua más fría', sum.coldest, sum.coldest && sum.coldest.minTemp != null ? fmt(sum.coldest.minTemp) : '–', '°C']
+    ].filter(function(r){ return show[r[0]] && r[2]; }).map(function(r){ return r.slice(1); });
+    // a section left with nothing to show is taken out of the descent
+    if (!tiles.length) removeSection('h-stats');
+    if (!rec.length) removeSection('h-rec');
     document.getElementById('records').innerHTML = rec.map(function(r){
       return '<div class="record"><span><strong>' + r[0] + '</strong>' + esc(r[1].site.name) + ' · ' + dateLabel(r[1].start) + '</span><b>' + r[2] + '<small>' + r[3] + '</small></b></div>';
     }).join('');
@@ -71,6 +83,7 @@ function renderLogbook(dives){
     return (t - pts[lo][0] < pts[hi][0] - t) ? pts[lo] : pts[hi];
   }
 
+  if (!settings.showDives){ removeSection('h-dives'); return; }
   var divesEl = document.getElementById('dives');
   if (!dives.length) divesEl.innerHTML = '<p class="empty">Aquí aparecerán los perfiles cuando importe mis inmersiones.</p>';
   dives.forEach(function(dv, idx){
@@ -108,19 +121,26 @@ function renderLogbook(dives){
       '<rect class="hit" x="' + ml + '" y="0" width="' + (W - ml - mr) + '" height="' + H + '" fill="transparent"/>' +
       '</svg>';
 
-    var facts = [['Máx', fmt(dv.maxDepth) + ' m'], ['Media', fmt(dv.avgDepth) + ' m'], ['Tiempo', clock(dv.duration)]];
-    if (dv.minTemp != null) facts.push(['Agua', (dv.maxTemp != null && Math.round(dv.maxTemp) !== Math.round(dv.minTemp) ? fmt(dv.minTemp) + '–' + fmt(dv.maxTemp) : fmt(dv.minTemp)) + ' °C']);
-    if (dv.tank && dv.tank.start != null) facts.push(['Botella', dv.tank.start + ' → ' + dv.tank.end + ' bar · ' + fmt(dv.tank.volume, 0) + ' L de ' + gasName(dv.tank.gas)]);
-    var c = sac(dv); if (c != null) facts.push(['Consumo', fmt(c) + ' L/min']);
+    var c = !dv.noSac && show.sac ? sac(dv) : null;
     var place = coords(dv.site);
+    var unit = function(v, u){ return v + '<small>' + u + '</small>'; };
+    var main = [['Máxima', unit(fmt(dv.maxDepth), 'm')], ['Duración', unit(String(Math.round(dv.duration / 60)), 'min')]];
+    if (dv.minTemp != null) main.push(['Agua', unit(fmt(dv.minTemp), '°C')]);
+    var extra = [['Media', fmt(dv.avgDepth) + ' m']];
+    if (dv.minTemp != null && dv.maxTemp != null && dv.maxTemp - dv.minTemp >= 0.5) extra.push(['Agua', fmt(dv.minTemp) + '–' + fmt(dv.maxTemp) + ' °C']);
+    if (dv.tank && dv.tank.start != null){ extra.push(['Botella', fmt(dv.tank.volume, 0) + ' L · ' + gasName(dv.tank.gas)]); extra.push(['Presión', dv.tank.start + ' → ' + dv.tank.end + ' bar']); }
+    if (c != null) extra.push(['Consumo', fmt(c) + ' L/min']);
+    var kicker = (dv.number != null ? 'Nº ' + dv.number + ' · ' : '') + dateLabel(dv.start, true);
     var card = document.createElement('article');
     card.className = 'dive';
     card.innerHTML =
-      '<div class="dive-head"><h3>' + esc(dv.site.name) + (dv.number != null ? ' <span class="dive-no">nº ' + dv.number + '</span>' : '') + '</h3><time datetime="' + esc(dv.start) + '">' + dateLabel(dv.start, true) + '</time></div>' +
-      (place ? '<p class="dive-place"><a href="https://www.openstreetmap.org/?mlat=' + dv.site.lat + '&amp;mlon=' + dv.site.lon + '#map=14/' + dv.site.lat + '/' + dv.site.lon + '" target="_blank" rel="noopener">' + place + '</a></p>' : '') +
-      '<div class="dive-facts">' + facts.map(function(f){ return '<span><em>' + f[0] + '</em>' + f[1] + '</span>'; }).join('') + '</div>' +
-      (dv.notes ? '<p class="dive-notes">' + esc(dv.notes) + '</p>' : '') +
-      '<div class="profile">' + svg + '<div class="tip" hidden></div></div>';
+      '<header class="dive-head"><p class="dive-kicker"><time datetime="' + esc(dv.start) + '">' + esc(kicker) + '</time></p>' +
+      '<h3>' + esc(dv.site.name) + '</h3>' +
+      (place ? '<a class="dive-place" href="https://www.openstreetmap.org/?mlat=' + dv.site.lat + '&amp;mlon=' + dv.site.lon + '#map=14/' + dv.site.lat + '/' + dv.site.lon + '" target="_blank" rel="noopener">' + place + '</a>' : '') + '</header>' +
+      '<dl class="dive-main">' + main.map(function(f){ return '<div><dt>' + f[0] + '</dt><dd>' + f[1] + '</dd></div>'; }).join('') + '</dl>' +
+      '<div class="profile">' + svg + '<div class="tip" hidden></div></div>' +
+      '<dl class="dive-extra">' + extra.map(function(f){ return '<div><dt>' + f[0] + '</dt><dd>' + f[1] + '</dd></div>'; }).join('') + '</dl>' +
+      (dv.notes ? '<p class="dive-notes">' + esc(dv.notes) + '</p>' : '');
     divesEl.appendChild(card);
 
     var svgEl = card.querySelector('svg'), hov = card.querySelector('.hover'), hx = card.querySelector('.hx'), hc = card.querySelector('.hc'), tip = card.querySelector('.tip');
