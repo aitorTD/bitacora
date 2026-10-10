@@ -264,6 +264,44 @@ export function initScene(dive){
   }).catch(err => console.warn('Mask failed to load', err));
 
 
+  /* ---------- Easter egg on the horizon: Beedle's shop ship from The Wind Waker ---------- */
+  // Model extracted from the game (see scripts/convert-boat.mjs). It only shows from the surface,
+  // small and hazy far out on the open side of the frame, rocking on the same waves as the sea.
+  const boat = new THREE.Group(); boat.visible = false; scene.add(boat);
+  const boatHaze = { uHaze: { value: new THREE.Color() }, uHazeK: { value: .3 } };
+  {
+    // where it sits: a fixed bearing seen from the camera at the top of the page
+    const heroY = 2.6 + (small ? 1.25 : 1.05), cam0 = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, .1, 2000);
+    if (small){ cam0.position.set(.9, heroY, 6.5); cam0.lookAt(-.4, heroY + .95, -3); }
+    else { cam0.position.set(-1.2, heroY, 5.3); cam0.lookAt(-2.6, heroY + .75, -4); }
+    cam0.updateMatrixWorld(); cam0.updateProjectionMatrix();
+    const dir = new THREE.Vector3(small ? .5 : .3, 0, .5).unproject(cam0).sub(cam0.position); dir.y = 0; dir.normalize();
+    const D = small ? 85 : 115;
+    boat.position.set(cam0.position.x + dir.x * D, SURF, cam0.position.z + dir.z * D);
+    boat.userData.yaw = Math.atan2(dir.x, dir.z) + 2.2;     // three-quarter view, bow to the right
+  }
+  new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/beedle-boat.glb`).then(g => {
+    const m = g.scene;
+    m.scale.setScalar(small ? .0085 : .0105);
+    m.traverse(o => {
+      if (!o.isMesh) return;
+      const mat = o.material; mat.fog = false; mat.roughness = .9;
+      mat.onBeforeCompile = sh => {
+        sh.uniforms.uHaze = boatHaze.uHaze; sh.uniforms.uHazeK = boatHaze.uHazeK;
+        sh.fragmentShader = 'uniform vec3 uHaze; uniform float uHazeK;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', 'outgoingLight = mix(outgoingLight, uHaze, uHazeK);\n#include <opaque_fragment>');
+      };
+    });
+    boat.add(m);
+    // at night a small warm lantern on the cabin, so the ship is still there in the dark
+    const box = new THREE.Box3().setFromObject(m);
+    const lantern = new THREE.Mesh(glowGeo, glowMaterial('#ffb35c', 2.2));
+    lantern.material.depthTest = false;
+    lantern.position.set(0, box.max.y * .5, 0); lantern.scale.set(1.3, 1.3, 1); lantern.renderOrder = 4;
+    boat.add(lantern); billboards.push(lantern); boat.userData.lantern = lantern;
+  }).catch(err => console.warn('Boat failed to load', err));
+  // same swell as the sea surface shader (WAVES), sampled at the hull
+  const swell = (x, z, t) => .14 * Math.sin(x * .32 + t * 1.05) + .09 * Math.sin(z * .47 - t * .85 + x * .18) + .045 * Math.sin((x + z) * 1.25 + t * 1.6) + .022 * Math.sin(x * 2.9 - z * 2.2 + t * 2.2);
+
   /* ---------- Bubbles ---------- */
   const BUB = 70;
   const bubMat = new THREE.MeshStandardMaterial({color:'#dff6ff', roughness:.05, metalness:0, transparent:true, opacity:.55, emissive:'#8fd6ee', emissiveIntensity:.25});
@@ -856,6 +894,16 @@ export function initScene(dive){
     sun.target.position.copy(camera.position);
     sun.position.copy(camera.position).addScaledVector(isAbove ? lightDir : lightDirW, 30);
 
+    // the boat on the horizon, only while we are above the water
+    boat.visible = isAbove && boat.children.length > 0;
+    if (boat.visible){
+      const bx = boat.position.x, bz = boat.position.z;
+      boat.position.y = SURF + swell(bx, bz, t) * .8 - .05;
+      boat.rotation.set((swell(bx, bz + 3, t) - swell(bx, bz - 3, t)) * .08, boat.userData.yaw + Math.sin(t * .05) * .06, (swell(bx + 2, bz, t) - swell(bx - 2, bz, t)) * .14 + Math.sin(t * .6) * .02, 'YXZ');
+      boatHaze.uHaze.value.setRGB(.42, .67, .86).lerp(tmpB.setRGB(.03, .055, .11), n);
+      boatHaze.uHazeK.value = mix(.22, .42, n);
+      if (boat.userData.lantern) boat.userData.lantern.material.uniforms.uOpacity.value = smooth(.4, 1, n) * (.75 + .1 * Math.sin(t * 2.3) + .05 * Math.sin(t * 7.1));
+    }
     surface.visible = camY > -24;
     surfMat.uniforms.uTime.value = t; surfMat.uniforms.uFade.value = Math.exp(-d / 7); surfMat.uniforms.uFog.value.copy(fogCol); surfMat.uniforms.uNight.value = n;
     causU.uTime.value = t; causU.uCaus.value = 1 - n;
