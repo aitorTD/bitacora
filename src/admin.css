@@ -140,3 +140,23 @@ label.btn{cursor:pointer}
 .notes-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .notes-foot .actions{margin-top:0}
 @media (max-width:520px){.notes-edit{grid-column:1}}
+/* weather */
+.wx-list{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid var(--line)}
+.wx-row{display:grid;grid-template-columns:minmax(7.5rem,auto) minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);transition:opacity .15s}
+.wx-name{display:flex;flex-direction:column;gap:2px;font-weight:600;font-size:.92rem}
+.wx-name small{font-family:var(--f-mono);font-size:.7rem;font-weight:400;color:var(--ink-dim)}
+.wx-row.is-pinned .wx-name small{color:var(--amber)}
+.wx-weight{width:100%;min-width:0;accent-color:var(--amber);cursor:pointer}
+.wx-weight[disabled]{opacity:.35;cursor:default}
+.wx-row.is-off .wx-name{color:var(--ink-dim)}
+.wx-list.is-fixed .wx-row:not(.is-pinned){opacity:.45}
+.wx-pin{display:grid;place-items:center;width:34px;height:34px;border-radius:var(--r-in);border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer}
+.wx-pin svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.wx-pin:hover{border-color:var(--amber);color:var(--ink)}
+.wx-pin[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
+.wx-pin[aria-pressed="true"] svg{fill:currentColor}
+.wx-pin:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+@media (max-width:520px){
+  .wx-row{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"name on pin" "w w w";row-gap:8px}
+  .wx-name{grid-area:name}.wx-weight{grid-area:w}.wx-row .switch{grid-area:on}.wx-pin{grid-area:pin}
+}

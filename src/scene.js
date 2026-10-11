@@ -104,7 +104,7 @@ export function initScene(dive){
       nig = mix(nig, vec3(.03,.036,.05), uCloud*.85);
       vec3 col = mix(day, nig, uNight);
       // fog: everything leans to one grey, most of all near the horizon
-      vec3 hz = mix(vec3(.7,.75,.79), vec3(.055,.065,.085), uNight);
+      vec3 hz = mix(vec3(.7,.75,.79)*mix(1., .58, uCloud*uCloud), vec3(.055,.065,.085), uNight);
       col = mix(col, hz, uHaze*mix(1., .7, smoothstep(.0,.55,h)));
       // lightning lights the clouds from inside
       col += vec3(.8,.85,1.)*uFlash*(.35 + .65*cl)*mix(1.2, .9, uNight);
@@ -148,7 +148,10 @@ export function initScene(dive){
     }
   `;
   const WAVES = `
-    float wav(vec2 p){ return .14*sin(p.x*.32+uTime*1.05) + .09*sin(p.y*.47-uTime*.85+p.x*.18) + .045*sin((p.x+p.y)*1.25+uTime*1.6) + .022*sin(p.x*2.9-p.y*2.2+uTime*2.2); }
+    uniform float uSea;   // 1 calm, up to ~2.6 in a storm: bigger swell plus a short, choppy sea on top
+    float wav(vec2 p){ float k = uSea - 1.;
+      return (.14*sin(p.x*.32+uTime*1.05) + .09*sin(p.y*.47-uTime*.85+p.x*.18))*uSea + (.045*sin((p.x+p.y)*1.25+uTime*1.6) + .022*sin(p.x*2.9-p.y*2.2+uTime*2.2))*(1. + .6*k)
+        + k*(.07*sin(p.x*.7+p.y*.42+uTime*1.35) + .035*sin(p.y*1.6-p.x*.5+uTime*2.4)); }
   `;
 
   /* ---------- Sky dome ---------- */
@@ -156,7 +159,7 @@ export function initScene(dive){
   const sunDir = new THREE.Vector3(narrow ? -.03 : .12, narrow ? .45 : .34, narrow ? -.89 : -.93).normalize();
   const moonDir = new THREE.Vector3(narrow ? -.04 : -.05, narrow ? .5 : .42, narrow ? -.86 : -.9).normalize();
   // weather, shared by the sky, the sea surface and the rain (see weather.js for the states)
-  const WX = { uCloud:{value:0}, uHaze:{value:0}, uDusk:{value:0}, uMeteor:{value:0}, uFlash:{value:0}, uRain:{value:0} };
+  const WX = { uCloud:{value:0}, uHaze:{value:0}, uDusk:{value:0}, uMeteor:{value:0}, uFlash:{value:0}, uRain:{value:0}, uSea:{value:1} };
   const duskDir = new THREE.Vector3(narrow ? -.02 : .1, .075, -1).normalize();
   const skyMat = new THREE.ShaderMaterial({
     uniforms:{uLight:{value:lightDir}, uNight:{value:0}, uTime:{value:0}, ...WX},
@@ -390,7 +393,9 @@ export function initScene(dive){
     boat.add(m);
   }).catch(err => console.warn('Boat failed to load', err));
   // same swell as the sea surface shader (WAVES), sampled at the hull
-  const swell = (x, z, t) => .14 * Math.sin(x * .32 + t * 1.05) + .09 * Math.sin(z * .47 - t * .85 + x * .18) + .045 * Math.sin((x + z) * 1.25 + t * 1.6) + .022 * Math.sin(x * 2.9 - z * 2.2 + t * 2.2);
+  const swell = (x, z, t) => { const s = WX.uSea.value, k = s - 1;
+    return (.14 * Math.sin(x * .32 + t * 1.05) + .09 * Math.sin(z * .47 - t * .85 + x * .18)) * s + (.045 * Math.sin((x + z) * 1.25 + t * 1.6) + .022 * Math.sin(x * 2.9 - z * 2.2 + t * 2.2)) * (1 + .6 * k)
+      + k * (.07 * Math.sin(x * .7 + z * .42 + t * 1.35) + .035 * Math.sin(z * 1.6 - x * .5 + t * 2.4)); };
 
   /* ---------- Bubbles ---------- */
   const BUB = 70;
@@ -852,11 +857,11 @@ export function initScene(dive){
   }
   let night = dive.night ? 1 : 0;
   const WX_GOALS = {
-    clear: { cloud: 0, haze: 0, rain: 0 },
-    rain: { cloud: .8, haze: .3, rain: .75 },
-    storm: { cloud: 1, haze: .35, rain: 1 },
-    fog: { cloud: .35, haze: .88, rain: 0 },
-    special: { cloud: 0, haze: 0, rain: 0 },
+    clear: { cloud: 0, haze: 0, rain: 0, sea: 1 },
+    rain: { cloud: .8, haze: .3, rain: .75, sea: 1.35 },
+    storm: { cloud: 1, haze: .35, rain: 1, sea: 2.6 },
+    fog: { cloud: .35, haze: .88, rain: 0, sea: .8 },
+    special: { cloud: 0, haze: 0, rain: 0, sea: 1 },
   };
   // start already in this visit's weather, no fade-in on load
   const wx0 = WX_GOALS[dive.weather] || WX_GOALS.clear;
@@ -969,6 +974,7 @@ export function initScene(dive){
     // day and a meteor shower by night, so it follows the day/night switch
     const wGoal = WX_GOALS[dive.weather] || WX_GOALS.clear, wk = dive.reduce ? 1 : Math.min(1, dt * 1.5);
     wx.cloud += (wGoal.cloud - wx.cloud) * wk; wx.haze += (wGoal.haze - wx.haze) * wk; wx.rain += (wGoal.rain - wx.rain) * wk;
+    wx.sea += (wGoal.sea - wx.sea) * (dive.reduce ? 1 : Math.min(1, dt * .6)); WX.uSea.value = wx.sea;
     const special = dive.weather === 'special' ? 1 : 0;
     wx.dusk += (special * (1 - (dive.night ? 1 : 0)) - wx.dusk) * wk; wx.meteor += (special * (dive.night ? 1 : 0) - wx.meteor) * wk;
     // lightning: a strike every few seconds, two quick flashes and a fading glow (never with reduced motion)
@@ -1036,11 +1042,15 @@ export function initScene(dive){
     boat.visible = isAbove && boat.children.length > 0;
     if (boat.visible){
       const bx = boat.position.x, bz = boat.position.z;
+      // it rides the same sea as the surface; in a storm it pitches and rolls hard and yaws off course
+      const rough = Math.max(0, wx.sea - 1);
       boat.position.y = SURF + swell(bx, bz, t) * .8 - .05;
-      boat.rotation.set((swell(bx, bz + 3, t) - swell(bx, bz - 3, t)) * .08, boat.userData.yaw + Math.sin(t * .05) * .06, (swell(bx + 2, bz, t) - swell(bx - 2, bz, t)) * .14 + Math.sin(t * .6) * .02, 'YXZ');
+      boat.rotation.set((swell(bx, bz + 3, t) - swell(bx, bz - 3, t)) * (.08 + .05 * rough) + Math.sin(t * .9) * .03 * rough,
+        boat.userData.yaw + Math.sin(t * .05) * .06 + Math.sin(t * .33) * .12 * rough,
+        (swell(bx + 2, bz, t) - swell(bx - 2, bz, t)) * (.14 + .08 * rough) + Math.sin(t * .6) * (.02 + .05 * rough), 'YXZ');
       boatHaze.uHaze.value.setRGB(.42, .67, .86).lerp(tmpB.setRGB(.03, .055, .11), n);
-      boatHaze.uHazeK.value = Math.min(.96, mix(.22, .42, n) + .6 * wx.haze + .25 * wx.cloud);
-      boatHaze.uHaze.value.lerp(tmpB.setRGB(.7, .75, .79).lerp(tmpA.setRGB(.055, .065, .085), n), wx.haze).lerp(tmpB.setRGB(.5, .54, .58).multiplyScalar(1 - .9 * n), wx.cloud * .7 * (1 - wx.haze));
+      boatHaze.uHazeK.value = Math.min(.96, mix(.22, .42, n) + .6 * wx.haze * (1 - .5 * wx.cloud) + .15 * wx.cloud);
+      boatHaze.uHaze.value.lerp(tmpB.setRGB(.7, .75, .79).multiplyScalar(1 - .42 * wx.cloud * wx.cloud).lerp(tmpA.setRGB(.055, .065, .085), n), wx.haze).lerp(tmpB.setRGB(.5, .54, .58).multiplyScalar(1 - .9 * n), wx.cloud * .7 * (1 - wx.haze));
     }
     surface.visible = camY > -24;
     surfMat.uniforms.uTime.value = t; surfMat.uniforms.uFade.value = Math.exp(-d / 7); surfMat.uniforms.uFog.value.copy(fogCol); surfMat.uniforms.uNight.value = n;

@@ -89,7 +89,9 @@ Al llegar al fondo, la luz del submarinista se posa sobre una máscara nomai de 
 
 ## Tiempo en la superficie
 
-Cada visita sortea el tiempo que hace arriba (`src/weather.js`): despejado, lluvia, tormenta, niebla o un estado especial que es atardecer de día y lluvia de estrellas de noche (sigue al botón Día/Noche). El sorteo va con pesos (despejado sale más a menudo) y nunca repite el de la visita anterior. Se nota sobre todo en la superficie (cielo, mar, lluvia, relámpagos), pero también bajo el agua: con nubes entra menos luz y menos cáusticas, la niebla enturbia el agua y los relámpagos iluminan los primeros metros. Con «reducir movimiento» la tormenta no destella. Para forzar uno: `?tiempo=lluvia`, `tormenta`, `niebla`, `atardecer`, `estrellas` o `despejado`.
+Cada visita sortea el tiempo que hace arriba (`src/weather.js`): despejado, lluvia, tormenta, niebla o un estado especial que es atardecer de día y lluvia de estrellas de noche (sigue al botón Día/Noche). El sorteo va con pesos (despejado sale más a menudo) y nunca repite el de la visita anterior. Se nota sobre todo en la superficie (cielo, mar, lluvia, relámpagos), pero también bajo el agua: con nubes entra menos luz y menos cáusticas, la niebla enturbia el agua y los relámpagos iluminan los primeros metros. Con «reducir movimiento» la tormenta no destella. Para forzar uno: `?tiempo=lluvia`, `tormenta`, `niebla`, `atardecer`, `estrellas` o `despejado`. En la tormenta el mar se encrespa (olas más altas y picadas) y el barco cabecea y se balancea con ellas.
+
+Desde el panel, tarjeta «Tiempo», se activa o desactiva cada estado, se cambia su peso en el sorteo (con el porcentaje resultante al lado) o se fija uno para que salga siempre. Se guarda en `settings.data.weather` de Supabase; la portada arranca con los últimos ajustes que vio el navegador y, si los nuevos descartan el tiempo sorteado, vuelve a sortear.
 
 ## Créditos
 

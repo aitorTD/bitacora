@@ -1,5 +1,6 @@
 import './admin.css';
-import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, setDiveNotes, listCerts, saveCert, deleteCert, exportAll, readBackup, restoreAll, listSeen } from './lib/supabase.js';
+import { configured, supabase, listDives, insertDives, deleteDive, setDiveFlags, setDiveStats, setDiveType, setDiveNotes, listCerts, saveCert, deleteCert, exportAll, readBackup, restoreAll, listSeen, getSettings, saveSettings } from './lib/supabase.js';
+import { STATES, STATE_NAMES, STATE_PARAM, DEFAULT_WX, normalizeWx, chances } from './weather.js';
 import { parseUDDF } from './lib/uddf.js';
 import { mergeDives, statOn } from './lib/logbook.js';
 
@@ -44,6 +45,7 @@ async function enterPanel(session){
   $('who').textContent = session.user.email; $('who').hidden = false; $('logout').hidden = false;
   show('panel');
   await refresh();
+  loadWeather();
   watchAlbum();
 }
 
@@ -461,3 +463,59 @@ $('restoreGo').addEventListener('click', async () => {
   } catch (err){ toast(explain(err), true); }
   btn.disabled = false; btn.textContent = 'Restaurar';
 });
+
+/* ---------- weather at the surface ---------- */
+let settingsData = {}, wxCfg = normalizeWx(null), wxTimer = 0;
+const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 4 4H6l4-4z"/><path d="M12 13v8"/></svg>';
+async function loadWeather(){
+  try { settingsData = (await getSettings()) || {}; }
+  catch (err){ settingsData = {}; toast(explain(err), true); }
+  wxCfg = normalizeWx(settingsData.weather);
+  renderWeather();
+}
+function renderWeather(){
+  const ch = chances(wxCfg);
+  $('wxStatus').textContent = wxCfg.fixed ? `Siempre: ${STATE_NAMES[wxCfg.fixed]}` : 'Aleatorio';
+  $('wxList').classList.toggle('is-fixed', !!wxCfg.fixed);
+  $('wxList').innerHTML = STATES.map(k => {
+    const on = wxCfg.enabled[k], pinned = wxCfg.fixed === k;
+    return `<li class="wx-row${pinned ? ' is-pinned' : ''}${on ? '' : ' is-off'}" data-k="${k}">
+      <span class="wx-name">${STATE_NAMES[k]}<small>${pinned ? 'siempre' : Math.round(ch[k] * 100) + ' %'}</small></span>
+      <input class="wx-weight" type="range" min="0" max="100" step="1" value="${wxCfg.weights[k]}" aria-label="Peso de ${STATE_NAMES[k]}" ${on && !wxCfg.fixed ? '' : 'disabled'}>
+      ${sw('wx-on', on, 'Activo', `Que ${STATE_NAMES[k].toLowerCase()} pueda salir`)}
+      <button class="wx-pin" type="button" data-act="wx-pin" aria-pressed="${pinned}" title="${pinned ? 'Volver al sorteo' : 'Que salga siempre'}" aria-label="Fijar ${STATE_NAMES[k]}">${PIN}</button>
+    </li>`;
+  }).join('');
+  $('wxPreview').href = '/?tiempo=' + STATE_PARAM[wxCfg.fixed || 'storm'];
+  $('wxPreview').textContent = wxCfg.fixed ? 'Ver en la web ↗' : 'Ver la tormenta en la web ↗';
+}
+function saveWeather(msg){
+  clearTimeout(wxTimer);
+  wxTimer = setTimeout(async () => {
+    try { settingsData = { ...settingsData, weather: wxCfg }; await saveSettings(settingsData); toast(msg || 'Tiempo guardado'); }
+    catch (err){ toast(explain(err), true); }
+  }, 450);
+}
+$('wxList').addEventListener('input', e => {
+  if (!e.target.matches('.wx-weight')) return;
+  const k = e.target.closest('.wx-row').dataset.k;
+  wxCfg.weights[k] = +e.target.value;
+  // live percentages without rebuilding the row under the finger
+  const ch = chances(wxCfg);
+  $('wxList').querySelectorAll('.wx-row').forEach(r => { if (!r.classList.contains('is-pinned')) r.querySelector('small').textContent = Math.round(ch[r.dataset.k] * 100) + ' %'; });
+  saveWeather();
+});
+$('wxList').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = b.closest('.wx-row').dataset.k;
+  if (b.dataset.act === 'wx-on'){
+    wxCfg.enabled[k] = b.getAttribute('aria-checked') !== 'true';
+    if (!wxCfg.enabled[k] && wxCfg.fixed === k) wxCfg.fixed = null;
+    renderWeather(); saveWeather(`${STATE_NAMES[k]}: ${wxCfg.enabled[k] ? 'puede salir' : 'ya no sale'}`);
+  } else if (b.dataset.act === 'wx-pin'){
+    wxCfg.fixed = wxCfg.fixed === k ? null : k;
+    if (wxCfg.fixed) wxCfg.enabled[k] = true;
+    renderWeather(); saveWeather(wxCfg.fixed ? `Siempre ${STATE_NAMES[k].toLowerCase()}` : 'Vuelve el sorteo');
+  }
+});
+$('wxReset').addEventListener('click', () => { wxCfg = normalizeWx(DEFAULT_WX); renderWeather(); saveWeather('Tiempo con los valores por defecto'); });

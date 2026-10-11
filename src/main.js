@@ -2,7 +2,7 @@ import './styles.css';
 import { inject } from '@vercel/analytics';
 import localDives from './data/dives.json';
 import { summarize, sac, statOn, normalizeDive } from './lib/logbook.js';
-import { pickWeather, weatherLabel } from './weather.js';
+import { pickWeather, weatherLabel, forcedWeather, cachedWx, cacheWx, normalizeWx, allowed } from './weather.js';
 
 var MAXD = 40;
 var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -37,7 +37,8 @@ const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: t
 async function loadLogbook(){
   if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, certs: [], settings: DEFAULTS };
   try {
-    const { listDives, listCerts, listSeen } = await import('./lib/supabase.js');
+    const { listDives, listCerts, listSeen, getSettings } = await import('./lib/supabase.js');
+    getSettings().then(function(data){ applyWeatherSettings(data && data.weather); }).catch(function(){});
     // how much of the species album is filled in, shown on the link to it
     Promise.all([listSeen(), import('./album/species.js')]).then(([rows, m]) => {
       const ids = new Set(m.SPECIES.map(s => s.id)), n = rows.filter(r => ids.has(r.species_id)).length;
@@ -331,9 +332,17 @@ function depthAt(sy){
 }
 function tempAt(d){ return d < 8 ? 21.5 - d * 0.12 : d < 22 ? 20.54 - (d - 8) * 0.36 : 15.5 - (d - 22) * 0.07; }
 
-// the weather at the surface is drawn once per visit (see weather.js)
-var wx = pickWeather();
+// the weather at the surface is drawn once per visit (see weather.js), first with the settings this
+// browser saw last time; when the current ones arrive and rule it out, it is drawn again
+var forced = forcedWeather();
+var wx = forced || { weather: pickWeather(cachedWx()), mode: null };
 var dive = {depth:0, target:0, reduce:reduce, night:false, weather:wx.weather};
+function applyWeatherSettings(cfg){
+  cfg = normalizeWx(cfg); cacheWx(cfg);
+  if (forced || allowed(cfg, dive.weather)) return;
+  dive.weather = pickWeather(cfg);
+  setMode(dive.night ? 'night' : 'day', false);
+}
 var root = document.documentElement, modeBtns = document.querySelectorAll('.mode button'), wxLabel = document.getElementById('wxLabel');
 function setMode(m, save){
   root.setAttribute('data-dive', m);
