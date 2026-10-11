@@ -21,6 +21,7 @@ export async function mountWatch(canvas, { reduce = false } = {}){
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.setClearColor(0x000000, 0);
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -69,9 +70,13 @@ export async function mountWatch(canvas, { reduce = false } = {}){
   new ResizeObserver(resize).observe(canvas);
 
   const settled = () => Math.abs(cur.yaw - goal.yaw) + Math.abs(cur.pitch - goal.pitch) + Math.abs(cur.speed - goal.speed) < .002;
+  let lastDraw = 0;
   function loop(t){
     raf = 0;
     if (!visible || document.hidden) return;
+    // the slow turn needs no more than 30 frames a second; a hover runs at full rate
+    if (settled() && t - lastDraw < 32){ raf = requestAnimationFrame(loop); return; }
+    lastDraw = t;
     const dt = last ? Math.min(.05, (t - last) / 1000) : 0; last = t;
     const k = 1 - Math.exp(-dt * 3); // frame-rate independent easing
     for (const key in cur) cur[key] += (goal[key] - cur[key]) * k;

@@ -419,8 +419,19 @@ inject();
     import('./watch.js').then(function(m){ return m.mountWatch(canvas, { reduce: reduce }); })
       .catch(function(err){ console.warn('No se pudo cargar el reloj', err); canvas.closest('.device').classList.add('no-3d'); });
   }
-  addEventListener('scene-ready', function(){ sceneUp = true; go(); }, { once: true });
+  addEventListener('scene-ready', function(){ sceneUp = true; go(); whenStill(function(){ near = true; go(); }); }, { once: true });
   setTimeout(function(){ sceneUp = true; go(); }, 8000);   // no 3D scene (old device): load it anyway
+  // or earlier, in a moment when the page is still (nobody scrolling), so setting it up never
+  // costs a frame mid-scroll
+  function whenStill(fn){
+    var lastMove = performance.now();
+    var mark = function(){ lastMove = performance.now(); };
+    addEventListener('scroll', mark, { passive: true }); addEventListener('touchmove', mark, { passive: true });
+    (function check(){
+      if (performance.now() - lastMove > 1500){ removeEventListener('scroll', mark); removeEventListener('touchmove', mark); fn(); }
+      else setTimeout(check, 400);
+    })();
+  }
   var io = new IntersectionObserver(function(entries){
     if (!entries[0].isIntersecting) return;
     io.disconnect(); near = true; go();

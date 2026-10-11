@@ -72,7 +72,7 @@ Cada inmersión con su perfil real (registrado con Pro Dive en un Apple Watch Ul
 | **Alojamiento** | [Vercel](https://vercel.com): despliegue en cada push, una tarea diaria para que Supabase no se pause y Web Analytics sin cookies |
 | **Inmersiones** | Exportaciones UDDF de Pro Dive, leídas en el navegador |
 
-**Rendimiento en móvil:** el texto se pinta antes que nada; la escena 3D llega después y compila sus shaders sin congelar la página donde el navegador lo permite. Los modelos van comprimidos con meshopt (unos 0,6 MB en total al entrar) y lo que no se ve al principio se carga por el camino: la máscara del fondo al pasar de 15 m y el reloj al acercarse a su sección. La portada lee los datos con `fetch` directo a la API de Supabase, sin la librería completa.
+**Rendimiento:** el texto se pinta antes que nada; la escena 3D llega después, compila sus shaders sin congelar la página donde el navegador lo permite y hace un pase de calentamiento invisible para que nada se compile a mitad del descenso. Va a 60 fotogramas estables (también en pantallas de 120/144 Hz) y baja la resolución sola si un equipo no llega. Los modelos van comprimidos con meshopt; el reloj y la máscara del fondo se preparan en el primer momento en que la página está quieta. La portada lee los datos con `fetch` directo a la API de Supabase, sin la librería completa.
 
 Las figuras del álbum no son modelos descargados: cada especie se genera en código a partir de unos pocos parámetros (forma, colores, aletas, dibujo) en `src/album/models.js`.
 

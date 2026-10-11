@@ -29,7 +29,7 @@ export function initScene(dive){
   let narrow = small || innerWidth / innerHeight < .85;
   const lowPower = small || (navigator.hardwareConcurrency || 8) <= 4;
   // resolution adapts to the device: it starts sharp and steps down if frames come in slow
-  const PR_MAX = Math.min(devicePixelRatio || 1, small ? 1.5 : 1.75), PR_MIN = Math.min(PR_MAX, small ? .8 : 1);
+  const PR_MAX = Math.min(devicePixelRatio || 1, 1.5), PR_MIN = Math.min(PR_MAX, small ? .75 : .85);
   // multisampling only where pixels are big enough for jagged edges to show; on retina screens the
   // density already smooths them and 4x MSAA on a half-float buffer was the costliest thing on screen
   const msaa = () => (!lowPower && pr <= 1.25 ? 4 : 0);
@@ -38,6 +38,8 @@ export function initScene(dive){
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
+  // asking the driver for shader logs makes the browser wait for every compile: only in development
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
 
   const scene = new THREE.Scene();
   const fogCol = new THREE.Color('#3ab0c0');
@@ -362,7 +364,15 @@ export function initScene(dive){
     const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
     const k = 2.1 / size.x;                  // about 2 m across: an old Nomai relic, big enough to read from the camera
     m.scale.setScalar(k); m.position.copy(c).multiplyScalar(-k);
+    // compile its shader before it can be seen, so it never stalls a frame mid-scroll
     maskPivot.add(m);
+    if (renderer.compileAsync){
+      renderer.setRenderTarget(composer.renderTarget1);
+      const ready = renderer.compileAsync(m, camera, scene);
+      renderer.setRenderTarget(null);
+      m.visible = false;
+      ready.catch(() => {}).then(() => { m.visible = true; });
+    }
   }).catch(err => console.warn('Mask failed to load', err)); };
 
 
@@ -889,11 +899,12 @@ export function initScene(dive){
   // back after a long run of quick frames
   const perf = { n: 0, sum: 0, good: 0, warm: 0 };
   function watchPerf(raw){
-    perf.warm += raw; if (perf.warm < 3 || document.hidden) return;   // ignore start-up and shader compiles
-    perf.sum += raw; if (++perf.n < 60) return;
+    perf.warm += raw; if (perf.warm < 3 || document.hidden || raw > .25) return;   // skip start-up, shader compiles and tab switches
+    perf.sum += raw; if (++perf.n < 40) return;
     const avg = perf.sum / perf.n; perf.n = perf.sum = 0;
-    if (avg > 1 / 48 && pr > PR_MIN){ pr = Math.max(PR_MIN, pr - .25); perf.good = 0; applySize(); }
-    else if (avg < 1 / 55 && pr < PR_MAX && ++perf.good >= 4){ pr = Math.min(PR_MAX, pr + .25); perf.good = 0; applySize(); }
+    // frames are capped at 60: an average over ~19 ms means frames are being missed
+    if (avg > 1 / 52 && pr > PR_MIN){ pr = Math.max(PR_MIN, +(pr - .125).toFixed(3)); perf.good = 0; applySize(); }
+    else if (avg < 1 / 58 && pr < PR_MAX && ++perf.good >= 6){ pr = Math.min(PR_MAX, +(pr + .125).toFixed(3)); perf.good = 0; applySize(); }
   }
 
   const clock = new THREE.Clock();
@@ -1192,7 +1203,13 @@ export function initScene(dive){
 
     composer.render();
     if (firstFrame){ firstFrame = false; canvas.classList.add('ready'); dispatchEvent(new Event('scene-ready')); }
-    requestAnimationFrame(frame);
+  }
+  let lastDraw = 0;
+  function loop(now){
+    requestAnimationFrame(loop);
+    if (now - lastDraw < 1000 / 62) return;
+    lastDraw = now;
+    frame();
   }
   // compile the shaders without freezing the page where the browser can (KHR_parallel_shader_compile),
   // then start drawing; until then the CSS water gradient shows behind the text
@@ -1201,6 +1218,31 @@ export function initScene(dive){
   renderer.setRenderTarget(composer.renderTarget1);
   const compiled = renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera));
   renderer.setRenderTarget(null);
-  compiled.catch(() => {}).then(() => requestAnimationFrame(frame));
+  compiled.catch(() => {}).then(() => { warmUp(); requestAnimationFrame(loop); prefetchWhenStill(); });
+  // the mask is fetched in the first still moment after start (or at 15 m, whichever comes first)
+  function prefetchWhenStill(){
+    let lastMove = performance.now();
+    const mark = () => { lastMove = performance.now(); };
+    addEventListener('scroll', mark, { passive: true }); addEventListener('touchmove', mark, { passive: true });
+    (function check(){
+      if (maskRequested) return;
+      if (performance.now() - lastMove > 2500){ removeEventListener('scroll', mark); removeEventListener('touchmove', mark); loadMask(); }
+      else setTimeout(check, 500);
+    })();
+  }
+  // Browsers finish building a shader the first time it draws. Draw everything once now, off
+  // screen into a tiny buffer, with every mesh shown and nothing culled, so the jellies, fans or
+  // the mask never stall a frame when they first come into view on the way down.
+  function warmUp(){
+    const rt = new THREE.WebGLRenderTarget(8, 8, { type: THREE.HalfFloatType });
+    const saved = [];
+    scene.traverse(o => { if (o.isMesh || o.isPoints || o.isLine){ saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
+    const parents = []; scene.traverse(o => { if (!o.visible){ parents.push(o); o.visible = true; } });
+    try { renderer.setRenderTarget(rt); renderer.render(scene, camera); } catch (e) {}
+    renderer.setRenderTarget(null);
+    saved.forEach(([o, v, f]) => { o.visible = v; o.frustumCulled = f; });
+    parents.forEach(o => { if (!saved.some(x => x[0] === o)) o.visible = false; });
+    rt.dispose();
+  }
   if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, easterEgg, lightAim, rig: () => diverRig, renderer, scene };
 }
