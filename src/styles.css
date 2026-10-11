@@ -6,7 +6,7 @@
 #scene.ready{opacity:1}
 .veil{position:fixed;inset:0;z-index:2;pointer-events:none;background:linear-gradient(90deg,var(--veil-a) 0%,var(--veil-b) 38%,transparent 62%)}
 
-main{position:relative;z-index:3;padding-inline:clamp(16px,5vw,72px);padding-block:clamp(48px,12vh,120px) 0;display:flex;flex-direction:column;gap:62vh;max-width:1280px}
+main{position:relative;z-index:3;padding-inline:var(--gutter-l) var(--gutter-r);padding-block:clamp(48px,12vh,120px) 0;display:flex;flex-direction:column;gap:62vh;max-width:1280px}
 .log{width:min(34rem,100%);min-width:0}
 .log:last-child{margin-bottom:28vh}
 .panel{background:var(--panel);border-radius:var(--r);padding:clamp(18px,3vw,28px);backdrop-filter:blur(14px) saturate(1.1);-webkit-backdrop-filter:blur(14px) saturate(1.1)}
@@ -101,7 +101,7 @@ p{margin:0}
 /* Recreational dives keep the sea colour; training dives switch the whole card to amber, so the
    profile, the graphics and the badge all read as a different kind of dive at a glance. */
 .dive-kicker{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
-.dive-type{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 6px;border-radius:999px;border:1px solid currentColor;font-size:.62rem;letter-spacing:.1em;color:var(--cyan)}
+.dive-type{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 6px;border-radius:var(--r-sm);border:1px solid currentColor;font-size:.62rem;letter-spacing:.1em;color:var(--cyan)}
 .dive-type svg{width:12px;height:12px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .dive-kicker time{white-space:nowrap}
 .dive{--amber:var(--amber-soft)}
@@ -140,7 +140,7 @@ p{margin:0}
   .dstat-lbl{letter-spacing:.05em}
   .rec-date{display:block}
   .dive-kicker{flex-wrap:nowrap;letter-spacing:.08em}
-  .dive-type{padding:4px;border-radius:50%}
+  .dive-type{padding:4px}
   .dive-type svg{width:13px;height:13px}
   .dt-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .rec-date i{display:none}
@@ -204,7 +204,7 @@ svg.cert-dot{background:none;border-radius:0;overflow:visible;fill:none;stroke:v
 .credits a:hover{color:var(--ink)}
 
 /* Dive-computer gauge */
-.gauge{position:fixed;z-index:4;right:clamp(12px,2.5vw,32px);top:50%;transform:translateY(-50%);width:128px;font-family:var(--f-mono);color:var(--ink);background:var(--hud);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-variant-numeric:tabular-nums}
+.gauge{position:fixed;z-index:4;right:var(--gutter-r);top:50%;transform:translateY(-50%);width:128px;font-family:var(--f-mono);color:var(--ink);background:var(--hud);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-variant-numeric:tabular-nums}
 .g-label{font-size:.62rem;letter-spacing:.16em;color:var(--ink-dim)}
 .g-depth{font-family:var(--f-display);font-weight:800;font-variation-settings:"wdth" 92;font-size:2.4rem;line-height:1;margin-top:2px;color:var(--amber)}
 .g-depth small{font-family:var(--f-mono);font-size:.8rem;font-weight:500;margin-left:3px;color:var(--ink)}
@@ -216,11 +216,10 @@ svg.cert-dot{background:none;border-radius:0;overflow:visible;fill:none;stroke:v
 .g-row span{color:var(--ink-dim);letter-spacing:.1em}
 .g-row b{font-weight:500}
 .g-row b.on{color:var(--amber)}
-.g-stop{margin-top:8px;font-size:.62rem;letter-spacing:.08em;color:var(--on-amber);background:var(--amber);border-radius:6px;padding:4px 6px;text-align:center}
+.g-stop{margin-top:8px;font-size:.62rem;letter-spacing:.08em;color:var(--on-amber);background:var(--amber);border-radius:var(--r-sm);padding:4px 6px;text-align:center}
 @media (max-width:720px), (max-height:520px) and (orientation:landscape){
   /* phones (upright or sideways): one gutter for everything, the same on both sides */
-  main{padding-inline:max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-right))}
-  .gauge{right:max(16px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top,0px) + 10px);transform:none;width:auto;display:grid;grid-template-columns:auto auto;column-gap:14px;align-items:center;height:44px;padding:0 12px;border-radius:var(--r)}
+  .gauge{top:calc(env(safe-area-inset-top,0px) + 10px);transform:none;width:auto;display:grid;grid-template-columns:auto auto;column-gap:14px;align-items:center;height:44px;padding:0 12px;border-radius:var(--r)}
   .gauge:has(.g-stop:not([hidden])){height:auto;padding-block:6px}
   .g-row{line-height:1.25}
   .g-label{display:none}
@@ -232,7 +231,7 @@ svg.cert-dot{background:none;border-radius:0;overflow:visible;fill:none;stroke:v
 }
 @media (max-width:720px){.veil{background:linear-gradient(180deg,var(--veil-b),var(--veil-a))}}
 /* Day / night switch */
-.topnav{position:fixed;z-index:5;right:clamp(12px,2.5vw,32px);top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;gap:8px}
+.topnav{position:fixed;z-index:5;right:var(--gutter-r);top:calc(env(safe-area-inset-top,0px) + 16px);display:flex;align-items:center;gap:8px}
 .nav-album{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px;border-radius:var(--r);background:var(--hud);border:1px solid var(--line);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--ink);text-decoration:none;font:500 .7rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;transition:border-color .15s}
 .nav-album svg{width:16px;height:16px;flex:none}
 .nav-album:hover{border-color:var(--amber)}
@@ -245,7 +244,7 @@ svg.cert-dot{background:none;border-radius:0;overflow:visible;fill:none;stroke:v
 .mode button:hover{color:var(--ink)}
 .mode button[aria-pressed="true"]{background:var(--amber);color:var(--on-amber)}
 .mode button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-@media (max-width:720px), (max-height:520px) and (orientation:landscape){.topnav{left:max(16px,env(safe-area-inset-left));right:auto;top:calc(env(safe-area-inset-top,0px) + 10px);gap:6px}.mode{height:44px;padding:4px}.mode button{padding:0 10px;font-size:0;gap:0}.mode button svg{width:16px;height:16px}.nav-album{height:44px;padding:0 13px}.nav-label,.nav-count{display:none}}
+@media (max-width:720px), (max-height:520px) and (orientation:landscape){.topnav{left:var(--gutter-l);right:auto;top:calc(env(safe-area-inset-top,0px) + 10px);gap:6px}.mode{height:44px;padding:4px}.mode button{padding:0 10px;font-size:0;gap:0}.mode button svg{width:16px;height:16px}.nav-album{height:44px;padding:0 13px}.nav-label,.nav-count{display:none}}
 /* phones sideways: little height, so the type follows the height of the screen */
 @media (max-height:520px) and (orientation:landscape){
   main{padding-block-start:64px}

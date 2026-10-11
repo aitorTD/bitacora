@@ -10,14 +10,14 @@
 .album-ui .bar span{display:block;height:100%;width:0;background:var(--amber);border-radius:inherit;transition:width .6s ease}
 .album-ui .legend{list-style:none;display:flex;flex-wrap:wrap;gap:8px 16px;margin:20px 0 0;padding:0;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim)}
 .album-ui .legend li{display:inline-flex;align-items:center;gap:7px}
-.album-ui .legend .sw{width:16px;height:12px;border-radius:3px;border:1.5px solid var(--t1)}
+.album-ui .legend .sw{width:16px;height:12px;border-radius:4px;border:1.5px solid var(--t1)}
 .album-ui .legend [data-r="2"] .sw{border-color:var(--t2)}
 .album-ui .legend [data-r="3"] .sw{border-color:var(--t3);box-shadow:0 0 6px color-mix(in srgb,var(--t3) 60%,transparent)}
 .album-ui .legend [data-r="4"] .sw{border:0;background:conic-gradient(#ffd36e,#7fe3ee,#e48aff,#ffd36e)}
 
 .album-ui .filters{display:flex;flex-wrap:wrap;gap:10px 18px;margin:22px 0 8px}
 .album-ui .chips{display:flex;flex-wrap:wrap;gap:6px}
-.album-ui .chips button{font:500 .78rem/1 var(--f-mono);letter-spacing:.04em;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer}
+.album-ui .chips button{font:500 .78rem/1 var(--f-mono);letter-spacing:.04em;padding:8px 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:transparent;color:var(--ink-dim);cursor:pointer}
 .album-ui .chips button:hover{color:var(--ink);border-color:var(--cyan)}
 .album-ui .chips button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:var(--on-cyan)}
 .album-ui .chips button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
@@ -29,7 +29,7 @@
 .album-ui .cards{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:14px}
 
 /* cards: the frame tells the rarity (común, poco común, rara, muy rara) */
-.album-ui .card{--tier:var(--t1);position:relative;width:100%;display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:10px 10px 12px;border-radius:12px;cursor:pointer;font:inherit;color:inherit;transition:transform .18s ease}
+.album-ui .card{--tier:var(--t1);position:relative;width:100%;display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:10px 10px 12px;border-radius:var(--r);cursor:pointer;font:inherit;color:inherit;transition:transform .18s ease}
 .album-ui .card[data-r="2"]{--tier:var(--t2)}
 .album-ui .card[data-r="3"]{--tier:var(--t3)}
 .album-ui .card[data-r="4"]{--tier:var(--t4)}
@@ -44,7 +44,7 @@
 .album-ui .card.is-locked[data-r="1"]{border-color:var(--line)}
 @property --foil{syntax:'<angle>';inherits:false;initial-value:0deg}
 @keyframes foil{to{--foil:360deg}}
-.album-ui .c-art{display:block;aspect-ratio:1;border-radius:8px;background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--tier) 14%,transparent),transparent 70%)}
+.album-ui .c-art{display:block;aspect-ratio:1;border-radius:var(--r-in);background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--tier) 14%,transparent),transparent 70%)}
 .album-ui .c-art img{display:block;width:100%;height:100%;object-fit:contain}
 .album-ui .is-locked .c-art img{filter:var(--sil-filter);opacity:var(--sil-opacity)}
 .album-ui .c-head{position:absolute;top:10px;left:12px;right:12px;height:14px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
@@ -58,7 +58,7 @@
 .album-ui .empty{color:var(--ink-dim);margin-top:30px}
 
 /* viewer */
-.album-viewer{--t2:#7fd6c9;--t3:#f2c14e;--t4:#e48aff;--heat:#ff9a3c;--sil-filter:invert(1);--sil-opacity:.22;width:min(980px,calc(100% - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line);border-radius:16px;background:var(--card-solid);color:var(--ink);overflow:auto}
+.album-viewer{--t2:#7fd6c9;--t3:#f2c14e;--t4:#e48aff;--heat:#ff9a3c;--sil-filter:invert(1);--sil-opacity:.22;width:min(980px,calc(100% - 2 * var(--gutter)));max-width:none;max-height:calc(100dvh - 2 * var(--gutter));padding:0;border:1px solid var(--line);border-radius:var(--r);background:var(--card-solid);color:var(--ink);overflow:auto}
 :root[data-dive="day"] .album-viewer{--sil-filter:none;--sil-opacity:.25}
 .album-page ~ .album-viewer, body:has(.album-page) .album-viewer{--sil-filter:invert(1);--sil-opacity:.22}
 .album-viewer[open]{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
@@ -71,7 +71,7 @@
 .v-stage canvas:active{cursor:grabbing}
 .album-viewer.is-locked .v-stage canvas{filter:var(--sil-filter);opacity:var(--sil-opacity)}
 .v-hint{position:absolute;left:0;right:0;bottom:12px;margin:0;text-align:center;font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);pointer-events:none}
-.v-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card-solid) 70%,transparent);color:var(--ink);font-size:1.4rem;line-height:1;cursor:pointer}
+.v-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:var(--r-in);border:1px solid var(--line);background:color-mix(in srgb,var(--card-solid) 70%,transparent);color:var(--ink);font-size:1.4rem;line-height:1;cursor:pointer}
 .v-nav:hover{border-color:var(--cyan)}
 .v-nav.prev{left:10px}.v-nav.next{right:10px}
 .v-info{padding:clamp(20px,3vw,30px);display:flex;flex-direction:column;gap:9px}
@@ -79,7 +79,7 @@
 .v-name{margin:0;font-family:var(--f-display);font-weight:820;font-variation-settings:"wdth" 120;font-size:clamp(1.8rem,4vw,2.4rem);line-height:1}
 .v-sci{margin:0;font-style:italic;color:var(--ink-dim)}
 .v-tags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
-.v-tags > span{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-dim)}
+.v-tags > span{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:var(--r-sm);border:1px solid var(--line);color:var(--ink-dim)}
 .v-tags .tier{color:var(--ink);border-color:color-mix(in srgb,var(--cyan) 40%,transparent)}
 .album-viewer[data-r="2"] .v-tags .tier{border-color:var(--t2)}
 .album-viewer[data-r="3"] .v-tags .tier{border-color:var(--t3)}
@@ -93,7 +93,7 @@
 .v-map{margin:8px 0 0}
 .v-map[hidden]{display:none}
 .v-map figcaption{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px}
-.v-map-box{border-radius:8px;overflow:hidden;background:color-mix(in srgb,var(--abyss) 40%,transparent)}
+.v-map-box{border-radius:var(--r-in);overflow:hidden;background:color-mix(in srgb,var(--abyss) 40%,transparent)}
 .v-map-svg{display:block;width:100%;height:auto}
 .v-map-svg .land{fill:var(--land);stroke:var(--coast);stroke-width:.9;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 .v-map-svg .inset-bg{fill:color-mix(in srgb,var(--abyss) 70%,transparent)}
@@ -104,10 +104,10 @@
 .v-status{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:24px}
 .v-status .btn{flex:none;padding:9px 14px;font-size:.84rem}
 .v-actions{display:flex;gap:10px}
-.album-viewer .btn{font:600 .9rem/1 var(--f-body);padding:12px 16px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.album-viewer .btn{font:600 .9rem/1 var(--f-body);padding:12px 16px;border-radius:var(--r-in);border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
 .album-viewer .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--on-amber)}
 .album-viewer .btn:focus-visible,.v-nav:focus-visible,.v-close:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
-.v-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card-solid) 70%,transparent);color:var(--ink);cursor:pointer}
+.v-close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:var(--r-in);border:1px solid var(--line);background:color-mix(in srgb,var(--card-solid) 70%,transparent);color:var(--ink);cursor:pointer}
 /* the map never pushes the sheet past the screen */
 .v-map-svg{max-height:min(320px,36dvh)}
 /* phones: the whole sheet fits on one screen, no scrolling */
