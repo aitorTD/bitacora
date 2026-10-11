@@ -1,8 +1,80 @@
-# Aitor bajo el agua
+<div align="center">
 
-Mi bitácora de buceo: un descenso en 3D que se controla con el scroll, con profundímetro, modo día y noche, estadísticas y perfiles de cada inmersión registrada con Pro Dive en el Apple Watch.
+# Bitácora de buceo
 
-## Desarrollo
+**Mi diario de buceo como un descenso en 3D: haces scroll y bajas.**
+
+Cada inmersión con su perfil real (registrado con Pro Dive en un Apple Watch Ultra 2), las cifras, los sitios, las titulaciones y un álbum de cromos con las especies que voy encontrando.
+
+[**bitacora-aitor.vercel.app**](https://bitacora-aitor.vercel.app) · [Álbum de especies](https://bitacora-aitor.vercel.app/album)
+
+<img src="docs/screenshots/portada-atardecer.jpg" alt="Portada al atardecer: el título sobre el mar, con el sol bajo en el horizonte y un barco a lo lejos" width="100%">
+
+</div>
+
+## Qué hay
+
+- **Un descenso que se controla con el scroll.** La página es una columna de agua: empiezas en la superficie y bajas hasta los 40 m. Un profundímetro marca la profundidad, la temperatura y la presión, y la luz, el color del agua y la fauna cambian con la profundidad.
+- **Día y noche.** De noche el agua es negra, brilla el plancton y el submarinista enciende su linterna.
+- **El tiempo cambia en cada visita:** despejado, lluvia, tormenta con mar encrespado y relámpagos, niebla, y atardecer o lluvia de estrellas según el modo.
+- **Cifras y récords** sumados inmersión a inmersión, con el reloj en 3D que las registra.
+- **Mapa** con la costa dibujada en SVG (sin servicios de mapas): cuanto más grande el punto, más inmersiones ahí.
+- **Perfil de cada inmersión**, con la parada de seguridad, los datos del reloj y las notas.
+- **Álbum de especies:** 59 especies que se pueden ver buceando en España, como cromos 3D low poly. Las que no he visto salen en silueta, el marco dice lo difícil que es verlas y cada ficha tiene un mapa de calor de dónde es más fácil encontrarlas.
+- **Panel privado** para subir las inmersiones (.uddf), editar las notas, decidir qué cuenta en las estadísticas, marcar especies, ajustar el tiempo y descargar copias de seguridad.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/cifras.jpg" alt="Sección de cifras con el Apple Watch girando dentro de un aro naranja"></td>
+    <td width="50%"><img src="docs/screenshots/inmersion.jpg" alt="Ficha de una inmersión con su perfil de profundidad y la parada de seguridad"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/mapa.jpg" alt="Mapa de España con los sitios de buceo"></td>
+    <td><img src="docs/screenshots/fondo.jpg" alt="Final del descenso a 40 m, con la linterna iluminando el fondo"></td>
+  </tr>
+</table>
+
+### El tiempo en la superficie
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/portada-tormenta.jpg" alt="Portada de noche con tormenta, lluvia y mar encrespado"></td>
+    <td width="50%"><img src="docs/screenshots/portada-estrellas.jpg" alt="Portada de noche con luna y estrellas fugaces"></td>
+  </tr>
+</table>
+
+### Álbum de especies
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/album.jpg" alt="Rejilla de cromos del álbum: los vistos en color y los demás en silueta"></td>
+    <td width="50%"><img src="docs/screenshots/album-ficha.jpg" alt="Ficha del pulpo con el modelo 3D y el mapa de zonas"></td>
+  </tr>
+</table>
+
+### En el móvil
+
+<img src="docs/screenshots/movil.jpg" alt="Tres pantallas de móvil: portada con lluvia, ficha de inmersión y ficha del mero" width="100%">
+
+### Panel privado
+
+<img src="docs/screenshots/panel.jpg" alt="Panel de administración con resumen, importación, titulaciones e inmersiones guardadas" width="100%">
+
+<sub>Las capturas se han hecho en local con datos de ejemplo.</sub>
+
+## Cómo está hecho
+
+| | |
+|---|---|
+| **Web** | [Vite](https://vitejs.dev), HTML, CSS y JavaScript sin framework |
+| **3D** | [three.js](https://threejs.org): cielo, mar y tiempo con shaders propios, bloom, fauna procedural y modelos glTF comprimidos con meshopt |
+| **Datos** | [Supabase](https://supabase.com) (Postgres + autenticación) con reglas de acceso por fila |
+| **Alojamiento** | [Vercel](https://vercel.com): despliegue en cada push, una tarea diaria para que Supabase no se pause y Web Analytics sin cookies |
+| **Inmersiones** | Exportaciones UDDF de Pro Dive, leídas en el navegador |
+
+Las figuras del álbum no son modelos descargados: cada especie se genera en código a partir de unos pocos parámetros (forma, colores, aletas, dibujo) en `src/album/models.js`.
+
+## Puesta en marcha
 
 ```bash
 npm install
@@ -11,92 +83,61 @@ npm run build     # genera dist/
 npm run preview   # sirve dist/ en local
 ```
 
-## Panel privado (/admin)
-
-Las inmersiones viven en Supabase. La web las lee de ahí (si Supabase no está configurado, usa la copia de `src/data/dives.json`) y en `/admin`, con tu email y contraseña, puedes subir exportaciones de Pro Dive (.uddf), borrar inmersiones, ocultarlas de la web y elegir en qué estadísticas cuenta cada una (por ejemplo, sacar del SAC una inmersión de prácticas). Lo que se apaga en una inmersión tampoco aparece en su ficha. Las que ya están se saltan, por id o por hora de inicio. En el mismo panel se gestionan las titulaciones (conseguidas y pendientes), que salen en la sección «Formación». El mapa de «Dónde he buceado» se dibuja solo con las coordenadas de cada inmersión.
-
-Configuración, una sola vez:
-
-1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, ejecuta `supabase/schema.sql`.
-3. En **Authentication → Users → Add user**, crea tu usuario con email y contraseña (marca *Auto Confirm User*).
-4. En **SQL Editor**, hazlo administrador: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
-5. En **SQL Editor**, ejecuta también `supabase/migrations/002_ajustes.sql` (ajustes de qué se muestra en la web), `supabase/migrations/003_formacion.sql` (titulaciones) y `supabase/migrations/004_album.sql` (álbum de especies).
-6. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda registrarse.
-7. La URL y la clave publicable ya están en `.env` (son públicas por diseño), así que no hace falta configurar nada en Vercel. Para probar otro proyecto, ponlas en `.env.local`, que tiene prioridad y no se sube.
-
-También se puede importar desde la terminal a `src/data/dives.json` (copia local):
+Sin Supabase configurado, la web usa la copia local de `src/data/dives.json`. También se puede importar desde la terminal a esa copia:
 
 ```bash
 npm run import -- ~/Downloads/ProDive_16_2026-09-13_1010.uddf
 ```
 
+### Supabase (una sola vez)
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. En **SQL Editor**, ejecuta `supabase/schema.sql` y después, por orden, las migraciones de `supabase/migrations/` (002 a 005).
+3. En **Authentication → Users → Add user**, crea tu usuario (marca *Auto Confirm User*).
+4. Hazlo administrador en el SQL Editor: `insert into public.admins (user_id) select id from auth.users where email = 'tu@email.com';`
+5. En **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*.
+6. Pon la URL del proyecto y la clave **publicable** en `.env` (o en `.env.local` para probar otro proyecto; ese no se sube).
+
+## Seguridad
+
+- En el repositorio solo hay claves públicas: la URL de Supabase y la clave publicable (`sb_publishable_…`), que van en la web de todas formas. La clave secreta no se usa en ningún sitio.
+- Lo que puede hacer cada uno lo deciden las reglas de acceso por fila (`supabase/schema.sql` y migraciones): cualquiera puede leer lo que sale en la web; solo los usuarios de la tabla `admins` pueden escribir. Las inmersiones ocultas no se pueden leer desde fuera (migración 005).
+- Los registros están cerrados: el único usuario es el administrador.
+- Todo lo que viene de la base de datos se escapa antes de pintarse en la página.
+- Vercel añade cabeceras de seguridad (`vercel.json`) y el panel no se indexa (`robots.txt` y `noindex`).
+- La tarea diaria (`api/keepalive.js`) solo lee una fila y, si se define `CRON_SECRET` en Vercel, solo la puede lanzar Vercel.
+- El panel puede descargar una copia de seguridad completa en JSON y restaurarla.
+
 ## Estructura
 
 ```
-index.html          contenido de la página y el selector día/noche
-src/main.js         estadísticas, titulaciones, perfiles de inmersión, profundímetro y scroll
-src/map.js          mapa de sitios de buceo: costa dibujada en SVG, sin servicios de mapas
-src/data/land.json  costa ya proyectada (se regenera con `node scripts/build-land.mjs`, por ejemplo para ampliar la región)
-src/scene.js        escena 3D con three.js (cielo, mar, arrecife, pulpo, medusas, luz del submarinista)
-src/fauna.js        peces: bancos, peces que deambulan por la pantalla, salmonetes y raya en la arena
-src/diver.js        animación del submarinista: solo aletean las piernas, cuerpo y manos quietos
-src/styles.css      estilos y temas día/noche
-src/data/dives.json bitácora: las inmersiones importadas
-src/lib/uddf.js     lector de archivos UDDF (Pro Dive)
-src/lib/logbook.js  fusión sin duplicados, estadísticas y consumo de aire
-src/lib/supabase.js cliente de Supabase: inmersiones y titulaciones
-admin.html, src/admin.*  panel privado: login, inmersiones y titulaciones
-album.html, src/album/  álbum de especies
-supabase/schema.sql tablas y reglas de acceso (y migrations/ con los cambios posteriores)
-scripts/            importador de inmersiones, conversor del modelo a low poly y generador de la costa del mapa
-public/models/      submarinista y máscara nomai (GLB)
+index.html, src/main.js     portada: secciones, cifras, perfiles, profundímetro y scroll
+src/scene.js                escena 3D: cielo, mar, tiempo, arrecife, submarinista y su luz
+src/weather.js              sorteo del tiempo y ajustes que llegan del panel
+src/fauna.js, src/diver.js  peces y animación del submarinista
+src/watch.js                el Apple Watch que gira en «Lo que llevo buceado»
+src/map.js, src/data/       mapa en SVG (costa ya proyectada) y copia local de las inmersiones
+src/lib/                    lector UDDF, estadísticas y cliente de Supabase
+album.html, src/album/      álbum: catálogo, generadores de figuras y componente (rejilla, ficha, mapa)
+admin.html, src/admin.*     panel privado
+404.html, src/notfound.*    página de error
+api/keepalive.js            ping diario a Supabase (Vercel Cron)
+supabase/                   tablas, reglas de acceso y migraciones
+scripts/                    importador UDDF, conversores de modelos y generador de la costa
+public/                     modelos glTF, iconos, tarjeta para compartir y robots.txt
+docs/screenshots/           capturas de este README
 ```
-
-## Despliegue
-
-Vercel detecta Vite automáticamente: importa el repo en vercel.com/new y deja la configuración por defecto (build `npm run build`, salida `dist`). Cada push a `main` se publica solo.
-
-- `api/keepalive.js` + `crons` en `vercel.json`: una vez al día lee una fila de Supabase para que el proyecto gratuito no se pause por inactividad.
-- La tarjeta para compartir (`public/og.jpg`, etiquetas `og:` en `index.html`) apunta a la dirección oficial, https://bitacora-aitor.vercel.app (constante `SITE` en `vite.config.js`).
-- `404.html`: página de error con el estilo de la web.
-- Estadísticas de visitas: Vercel Web Analytics (`@vercel/analytics`); hay que activarlo una vez en la pestaña Analytics del proyecto.
-
-## Próximos pasos
-
-- Sustituir la fauna geométrica por modelos glTF.
-
-## Álbum de especies (/album)
-
-Un álbum de cromos con 59 especies que se pueden ver buceando en España (Mediterráneo, Atlántico y Canarias). Cada cromo es una figura 3D low poly generada en código; las que no he visto salen en silueta con su nombre, y el marco indica la rareza (común, poco común, rara, muy rara). Al abrir un cromo se ve la figura en 3D, sus datos y un mapa con las zonas donde es más fácil verla.
-
-El álbum público es de solo lectura. Se edita desde el panel (`/admin`, tarjeta «Especies vistas»), que muestra el mismo álbum: al tocar un cromo se marca como visto o se quita, con un solo botón, y el cambio sale al momento en la web. Lo visto se guarda en Supabase, tabla `species_seen` (migración 004); el catálogo vive en el código.
-
-## Copia de seguridad
-
-El plan gratuito de Supabase no hace copias. En el panel, la tarjeta «Copia de seguridad» descarga un JSON con todas las tablas (`dives`, `certifications`, `species_seen`, `settings`) y permite restaurarlo: escribe lo que hay en el archivo (upsert) y no borra nada que no esté en él.
-
-- `src/album/species.js`: catálogo (nombre, nombre científico, grupo, zonas, dato curioso, rareza, zonas calientes y cómo se dibuja).
-- `src/album/models.js`: generadores de figuras (peces, morenas, caballito, rayas, cefalópodos, crustáceos...).
-- `src/album/ui.js` + `ui.css`: el componente del álbum (rejilla, filtros, visor y mapa), usado por la página pública y por el panel.
-- `src/album/sheet.html`: hoja de pruebas solo para desarrollo (`/src/album/sheet.html` con `npm run dev`).
 
 ## Easter eggs
 
-En la superficie, a lo lejos, flota el barco tienda de Beedle de The Wind Waker (`public/models/beedle-boat.glb`, convertido con `scripts/convert-boat.mjs`).
-
-Al llegar al fondo, la luz del submarinista se posa sobre una máscara nomai de Outer Wilds medio enterrada en la arena. El sitio se calcula para que quede siempre a la vista (a la derecha del texto en ordenador, debajo en el móvil); es el grupo `easterEgg` de `src/scene.js`.
-
-## Tiempo en la superficie
-
-Cada visita sortea el tiempo que hace arriba (`src/weather.js`): despejado, lluvia, tormenta, niebla o un estado especial que es atardecer de día y lluvia de estrellas de noche (sigue al botón Día/Noche). El sorteo va con pesos (despejado sale más a menudo) y nunca repite el de la visita anterior. Se nota sobre todo en la superficie (cielo, mar, lluvia, relámpagos), pero también bajo el agua: con nubes entra menos luz y menos cáusticas, la niebla enturbia el agua y los relámpagos iluminan los primeros metros. Con «reducir movimiento» la tormenta no destella. Para forzar uno: `?tiempo=lluvia`, `tormenta`, `niebla`, `atardecer`, `estrellas` o `despejado`. En la tormenta el mar se encrespa (olas más altas y picadas) y el barco cabecea y se balancea con ellas.
-
-Desde el panel, tarjeta «Tiempo», se activa o desactiva cada estado, se cambia su peso en el sorteo (con el porcentaje resultante al lado) o se fija uno para que salga siempre. Se guarda en `settings.data.weather` de Supabase; la portada arranca con los últimos ajustes que vio el navegador y, si los nuevos descartan el tiempo sorteado, vuelve a sortear.
+- Desde la superficie, mirando al horizonte, flota el barco tienda de Beedle (*The Legend of Zelda: The Wind Waker*).
+- Al llegar al fondo, la linterna se posa sobre una máscara nomai de *Outer Wilds* medio enterrada en la arena.
 
 ## Créditos
 
-Modelo 3D del submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly (malla simplificada y colores planos) con `scripts/lowpoly-model.mjs`.
-
-Reloj del panel «Lo que llevo buceado»: [«Apple Watch Ultra Made In Blender (PolygonMBW)»](https://sketchfab.com/3d-models/apple-watch-ultra-made-in-blender-polygonmbw-bd089526a71c4517956c94f32a081210) de [PolygonMBW](https://sketchfab.com/PolygonMBW), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Pintado en titanio negro (también la tapa trasera) con correa Ocean negra, simplificado de 177.000 a 23.500 triángulos y comprimido con meshopt (`scripts/convert-watch.mjs`, de 6,4 MB a 280 KB). Se carga solo al acercarse al panel y solo se dibuja mientras está en pantalla (`src/watch.js`).
-
-Máscara del easter egg: [«Outer Wilds - Nomai Mask scan»](https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7) de [09williamsad](https://sketchfab.com/adamw1806), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Simplificada de 245.000 a 21.600 triángulos con `scripts/lowpoly-textured.mjs`. Outer Wilds es de Mobius Digital.
+- Submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly con `scripts/lowpoly-model.mjs`.
+- Reloj: [«Apple Watch Ultra Made In Blender (PolygonMBW)»](https://sketchfab.com/3d-models/apple-watch-ultra-made-in-blender-polygonmbw-bd089526a71c4517956c94f32a081210) de [PolygonMBW](https://sketchfab.com/PolygonMBW), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Pintado en titanio negro, simplificado y comprimido con `scripts/convert-watch.mjs`. Apple Watch es una marca de Apple Inc.
+- Máscara nomai: [«Outer Wilds - Nomai Mask scan»](https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7) de [09williamsad](https://sketchfab.com/adamw1806), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Simplificada con `scripts/lowpoly-textured.mjs`. *Outer Wilds* es de Mobius Digital.
+- Barco de Beedle: de *The Legend of Zelda: The Wind Waker* (© Nintendo), modelo extraído por AJD-262 y convertido con `scripts/convert-boat.mjs`.
+- Costa del mapa: [Natural Earth](https://www.naturalearthdata.com) vía [world-atlas](https://github.com/topojson/world-atlas) (dominio público).
+- Tipografías: [Anybody](https://fonts.google.com/specimen/Anybody), [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans) e [IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono) (SIL Open Font License).

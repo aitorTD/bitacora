@@ -30,13 +30,16 @@ const LOOK = {
   Watch_Strap: { color: [.016, .016, .018, 1], metal: 0, rough: .62 },
   Strap_Lock: { color: [.045, .045, .048, 1], metal: 1, rough: .3 },
   'Material.005': { color: [.035, .035, .037, 1], metal: 0, rough: .2 }, // back plate
-  // the back is a photo of a natural-titanium Ultra: darkening it keeps the engravings and sensors
-  'Material.006': { color: [.15, .15, .16, 1], metal: 0, rough: .3 },
-  'Material.008': { color: [.15, .15, .16, 1], metal: 0, rough: .3 },
+  // the back came as a third-party photo (watermarked) of a natural-titanium Ultra: it is dropped
+  // and the back is plain black glass, which is what the black model looks like anyway
+  'Material.006': { color: [.022, .022, .025, 1], metal: 0, rough: .18, noTexture: true },
+  'Material.008': { color: [.03, .03, .033, 1], metal: 0, rough: .25, noTexture: true },
 };
 for (const mat of root.listMaterials()){
   const look = LOOK[mat.getName()];
-  if (look) mat.setBaseColorFactor(look.color).setMetallicFactor(look.metal).setRoughnessFactor(look.rough);
+  if (!look) continue;
+  mat.setBaseColorFactor(look.color).setMetallicFactor(look.metal).setRoughnessFactor(look.rough);
+  if (look.noTexture) mat.setBaseColorTexture(null);
 }
 
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready;
