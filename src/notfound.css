@@ -4,7 +4,7 @@ body{min-height:100vh;min-height:100dvh;background:radial-gradient(120% 80% at 7
 :root[data-dive="day"] body{background:radial-gradient(120% 80% at 70% 0%,var(--w0),var(--w1) 45%,var(--w2))}
 :root[data-dive="day"]{--ink:#e9f7f8;--ink-dim:#a9cfd6;--amber:#ffb347;--on-amber:#1b1203}
 .lost{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:0 var(--gutter-r) 0 var(--gutter-l);max-width:52rem}
-.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 18px;display:flex;gap:10px;align-items:center}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin:0 0 18px;display:flex;gap:10px;align-items:center}
 .eyebrow::before{content:"";width:28px;height:1px;background:currentColor}
 h1{margin:0;font-family:var(--f-display);font-weight:850;font-variation-settings:"wdth" 128;font-size:clamp(2.6rem,8vw,5.4rem);line-height:.92;letter-spacing:-.01em;color:var(--ink)}
 .lede{margin:22px 0 30px;max-width:30rem;font-size:clamp(1.02rem,2vw,1.2rem);color:var(--ink-dim)}

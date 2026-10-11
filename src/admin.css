@@ -29,7 +29,7 @@ body{min-height:100vh;background:linear-gradient(180deg,var(--w1),var(--abyss) 4
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:clamp(18px,3vw,28px);min-width:0}
 .card.narrow{max-width:24rem;width:100%;margin-inline:auto}
 .card-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
-.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin:0 0 10px}
 h1,h2{font-family:var(--f-display);font-weight:780;font-variation-settings:"wdth" 116;line-height:1;margin:0 0 10px;text-wrap:balance}
 h1{font-size:clamp(1.8rem,5vw,2.4rem)}
 h2{font-size:1.5rem}
