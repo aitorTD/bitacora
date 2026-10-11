@@ -72,6 +72,8 @@ Cada inmersión con su perfil real (registrado con Pro Dive en un Apple Watch Ul
 | **Alojamiento** | [Vercel](https://vercel.com): despliegue en cada push, una tarea diaria para que Supabase no se pause y Web Analytics sin cookies |
 | **Inmersiones** | Exportaciones UDDF de Pro Dive, leídas en el navegador |
 
+**Rendimiento en móvil:** el texto se pinta antes que nada; la escena 3D llega después y compila sus shaders sin congelar la página donde el navegador lo permite. Los modelos van comprimidos con meshopt (unos 0,6 MB en total al entrar) y lo que no se ve al principio se carga por el camino: la máscara del fondo al pasar de 15 m y el reloj al acercarse a su sección. La portada lee los datos con `fetch` directo a la API de Supabase, sin la librería completa.
+
 Las figuras del álbum no son modelos descargados: cada especie se genera en código a partir de unos pocos parámetros (forma, colores, aletas, dibujo) en `src/album/models.js`.
 
 ## Puesta en marcha
@@ -135,9 +137,9 @@ docs/screenshots/           capturas de este README
 
 ## Créditos
 
-- Submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly con `scripts/lowpoly-model.mjs`.
+- Submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly con `scripts/lowpoly-model.mjs` y comprimido con `scripts/compress-models.mjs`.
 - Reloj: [«Apple Watch Ultra Made In Blender (PolygonMBW)»](https://sketchfab.com/3d-models/apple-watch-ultra-made-in-blender-polygonmbw-bd089526a71c4517956c94f32a081210) de [PolygonMBW](https://sketchfab.com/PolygonMBW), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Pintado en titanio negro, simplificado y comprimido con `scripts/convert-watch.mjs`. Apple Watch es una marca de Apple Inc.
-- Máscara nomai: [«Outer Wilds - Nomai Mask scan»](https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7) de [09williamsad](https://sketchfab.com/adamw1806), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Simplificada con `scripts/lowpoly-textured.mjs`. *Outer Wilds* es de Mobius Digital.
+- Máscara nomai: [«Outer Wilds - Nomai Mask scan»](https://sketchfab.com/3d-models/outer-wilds-nomai-mask-scan-cab879e52de8497898dd9c8048a4b5c7) de [09williamsad](https://sketchfab.com/adamw1806), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Simplificada con `scripts/lowpoly-textured.mjs` y comprimida con `scripts/compress-models.mjs`. *Outer Wilds* es de Mobius Digital.
 - Barco de Beedle: de *The Legend of Zelda: The Wind Waker* (© Nintendo), modelo extraído por AJD-262 y convertido con `scripts/convert-boat.mjs`.
 - Costa del mapa: [Natural Earth](https://www.naturalearthdata.com) vía [world-atlas](https://github.com/topojson/world-atlas) (dominio público).
 - Tipografías: [Anybody](https://fonts.google.com/specimen/Anybody), [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans) e [IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono) (SIL Open Font License).

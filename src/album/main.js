@@ -9,7 +9,7 @@ const root = document.getElementById('album');
 (async () => {
   let rows = [];
   if (import.meta.env.VITE_SUPABASE_URL){
-    try { rows = await (await import('../lib/supabase.js')).listSeen(); }
+    try { rows = await (await import('../lib/public-api.js')).listSeen(); }
     catch (err){ console.warn('Álbum:', err.message || err); }
   }
   createAlbum(root, { seen: rows });

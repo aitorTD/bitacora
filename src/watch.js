@@ -63,6 +63,8 @@ export async function mountWatch(canvas, { reduce = false } = {}){
     camera.aspect = w / h; camera.updateProjectionMatrix();
     draw();
   }
+  // shaders compiled off the main thread where possible before the first frame
+  if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
   resize();
   new ResizeObserver(resize).observe(canvas);
 

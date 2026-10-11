@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { sortCerts } from './public-api.js';
+export { sortCerts };
 
 /*
  * Supabase client. The URL and the anon key are public by design: what visitors and the
@@ -77,12 +79,6 @@ export async function listCerts(){
   const { data, error } = await supabase.from('certifications').select('*');
   if (error) throw error;
   return sortCerts(data);
-}
-// obtained ones by date, then the planned ones
-export function sortCerts(list){
-  return [...list].sort((a, b) => (a.status === b.status ? 0 : a.status === 'done' ? -1 : 1)
-    || String(a.obtained_on || '9999').localeCompare(String(b.obtained_on || '9999'))
-    || String(a.created_at || '').localeCompare(String(b.created_at || '')));
 }
 export async function saveCert(cert){
   const row = { title: cert.title, agency: cert.agency || null, center: cert.center || null, obtained_on: cert.obtained_on || null, status: cert.status };

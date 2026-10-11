@@ -37,7 +37,7 @@ const DEFAULTS = { stats: { count: true, time: true, maxDepth: true, avgDepth: t
 async function loadLogbook(){
   if (!import.meta.env.VITE_SUPABASE_URL) return { dives: localDives, certs: [], settings: DEFAULTS };
   try {
-    const { listDives, listCerts, listSeen, getSettings } = await import('./lib/supabase.js');
+    const { listDives, listCerts, listSeen, getSettings } = await import('./lib/public-api.js');
     getSettings().then(function(data){ applyWeatherSettings(data && data.weather); }).catch(function(){});
     // how much of the species album is filled in, shown on the link to it
     Promise.all([listSeen(), import('./album/species.js')]).then(([rows, m]) => {
@@ -410,12 +410,21 @@ inject();
 (function(){
   var canvas = document.getElementById('watch');
   if (!canvas || !('IntersectionObserver' in window)) return;
-  var io = new IntersectionObserver(function(entries){
-    if (!entries[0].isIntersecting) return;
-    io.disconnect();
+  // it waits for the main scene (so the two never compile shaders at the same time) and for its
+  // panel to come close
+  var sceneUp = false, near = false, started = false;
+  function go(){
+    if (started || !sceneUp || !near) return;
+    started = true;
     import('./watch.js').then(function(m){ return m.mountWatch(canvas, { reduce: reduce }); })
       .catch(function(err){ console.warn('No se pudo cargar el reloj', err); canvas.closest('.device').classList.add('no-3d'); });
-  }, { rootMargin: '600px 0px' });
+  }
+  addEventListener('scene-ready', function(){ sceneUp = true; go(); }, { once: true });
+  setTimeout(function(){ sceneUp = true; go(); }, 8000);   // no 3D scene (old device): load it anyway
+  var io = new IntersectionObserver(function(entries){
+    if (!entries[0].isIntersecting) return;
+    io.disconnect(); near = true; go();
+  }, { rootMargin: '250px 0px' });
   io.observe(canvas);
 })();
 

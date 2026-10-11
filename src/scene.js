@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { loadDiver, updateDiver, spring } from './diver.js';
 import { createFauna } from './fauna.js';
 
@@ -344,23 +345,25 @@ export function initScene(dive){
     transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide
   });
   const cone = (r, len) => { const g = new THREE.ConeGeometry(r, len, 56, 1, true); g.rotateX(Math.PI / 2); g.translate(0, 0, -len / 2); return g; };
-  lightRig.add(new THREE.Mesh(cone(1.35, beamLen), beamMat));
+  const beam = new THREE.Mesh(cone(1.35, beamLen), beamMat); lightRig.add(beam);
   const coreMat = beamMat.clone(); coreMat.uniforms = THREE.UniformsUtils.clone(beamMat.uniforms); coreMat.uniforms.uLen.value = beamLen * .7;
-  lightRig.add(new THREE.Mesh(cone(.45, beamLen * .7), coreMat));
+  const beamCore = new THREE.Mesh(cone(.45, beamLen * .7), coreMat); lightRig.add(beamCore);
   // the spot on the seabed where the light comes to rest: put the easter egg in this group
   const easterEgg = new THREE.Group(); easterEgg.name = 'easterEgg';
   scene.add(easterEgg);
   // Easter egg: a Nomai mask from Outer Wilds, half buried in the sand, right where the light lands.
   // Model: "Outer Wilds - Nomai Mask scan" by 09williamsad, CC BY 4.0 (simplified, see scripts/).
   const maskPivot = new THREE.Group(); easterEgg.add(maskPivot);
-  new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/nomai-mask.glb`).then(g => {
+  // it only shows at the bottom, so it is fetched on the way down rather than on arrival
+  let maskRequested = false;
+  const loadMask = () => { maskRequested = true; new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/nomai-mask.glb`).then(g => {
     const m = g.scene;
     m.traverse(o => { if (o.isMesh){ o.material.flatShading = true; o.material.roughness = .78; o.material.metalness = 0; o.material.needsUpdate = true; } });
     const box = new THREE.Box3().setFromObject(m), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
     const k = 2.1 / size.x;                  // about 2 m across: an old Nomai relic, big enough to read from the camera
     m.scale.setScalar(k); m.position.copy(c).multiplyScalar(-k);
     maskPivot.add(m);
-  }).catch(err => console.warn('Mask failed to load', err));
+  }).catch(err => console.warn('Mask failed to load', err)); };
 
 
   /* ---------- Easter egg on the horizon: Beedle's shop ship from The Wind Waker ---------- */
@@ -961,6 +964,7 @@ export function initScene(dive){
     const speed = dive.reduce ? 0 : 1;
     t += dt * speed;
     const dRaw = dive.depth;          // negative while still above the water
+    if (!maskRequested && dRaw > 15) loadMask();
     const d = Math.max(0, dRaw);
     const y = -d;
 
@@ -1103,7 +1107,9 @@ export function initScene(dive){
     let lightTarget = swim.lightOn ? 1 : 0;
     if (swim.flicker >= 0){ swim.flicker += dive.reduce ? 1 : dt; const f = swim.flicker; lightTarget = f < .08 ? 1 : f < .16 ? .1 : f < .26 ? .9 : f < .3 ? .3 : 1; if (f > .35) swim.flicker = -1; }
     swim.light = (swim.flicker >= 0 || dive.reduce) ? lightTarget : swim.light + (lightTarget - swim.light) * Math.min(1, dt * 6);
-    lightRig.visible = !!diverRig && swim.light > .01;
+    // the spot light itself always stays in the scene (at zero when off): adding or removing a light
+    // changes every lit material's shader, which used to recompile them all mid-scroll
+    beam.visible = beamCore.visible = !!diverRig && swim.light > .01;
     if (diverRig){
       diverRig.lightAnchor.getWorldPosition(lightPos);
       // ahead and down along the swim; near the bottom it settles on the easter egg
@@ -1185,10 +1191,16 @@ export function initScene(dive){
     fill.intensity = isAbove ? 0 : mix(.8 + smooth(10, 30, d) * 2.4, 5, n);
 
     composer.render();
-    if (firstFrame){ firstFrame = false; canvas.classList.add('ready'); }
+    if (firstFrame){ firstFrame = false; canvas.classList.add('ready'); dispatchEvent(new Event('scene-ready')); }
     requestAnimationFrame(frame);
   }
-  try { renderer.compile(scene, camera); } catch (e) {}
-  requestAnimationFrame(frame);
-  if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, easterEgg, lightAim, rig: () => diverRig };
+  // compile the shaders without freezing the page where the browser can (KHR_parallel_shader_compile),
+  // then start drawing; until then the CSS water gradient shows behind the text
+  // The scene is drawn into the composer's buffer, not the screen: compile for that target (linear
+  // colour), or every program gets built twice, once uselessly for the screen
+  renderer.setRenderTarget(composer.renderTarget1);
+  const compiled = renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera));
+  renderer.setRenderTarget(null);
+  compiled.catch(() => {}).then(() => requestAnimationFrame(frame));
+  if (import.meta.env.DEV) window.__scene = { dive, swim, bub, regWorld, camera, diverRoot, easterEgg, lightAim, rig: () => diverRig, renderer, scene };
 }

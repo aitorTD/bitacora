@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 /*
  * Diver model "Diver" by ucdavisterc (https://sketchfab.com/ucdavisterc), CC BY 4.0,
@@ -31,7 +32,8 @@ export function spring(s, target, omega, dt){
 }
 
 export async function loadDiver(url, { decorate } = {}){
-  const gltf = await new GLTFLoader().loadAsync(url);
+  // meshopt-compressed and without normals: everything is flat shaded (scripts/compress-models.mjs)
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
   const root = gltf.scene;
   let skinned = null;
   root.traverse(o => {
@@ -39,7 +41,7 @@ export async function loadDiver(url, { decorate } = {}){
     o.frustumCulled = false;
     const glass = o.material.transparent;
     o.material = glass
-      ? new THREE.MeshStandardMaterial({ color: '#8fd4e6', transparent: true, opacity: 0.45, roughness: 0.1, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false })
+      ? new THREE.MeshStandardMaterial({ color: '#8fd4e6', transparent: true, opacity: 0.45, roughness: 0.1, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false, flatShading: true })
       : new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.62, metalness: 0.05, side: THREE.DoubleSide });
     if (!glass && decorate) decorate(o.material);
     if (o.isSkinnedMesh && !skinned) skinned = o;
