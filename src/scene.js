@@ -74,35 +74,76 @@ export function initScene(dive){
     float fbm2(vec2 p){ float s = 0., a = .5; for(int i=0;i<5;i++){ s += a*vn(p); p = p*2.03+vec2(17.1,9.3); a *= .5; } return s; }
     float cau(vec2 p, float t){ float c = 0.; for(int i=0;i<3;i++){ p += vec2(sin(p.y*1.3+t*.6), cos(p.x*1.1-t*.5)); c += .5/(.45+abs(sin(p.x)+cos(p.y))); } return c/3.; }
   `;
+  // uCloud: overcast (rain .8, storm 1) · uHaze: fog · uDusk: sunset · uMeteor: meteor shower ·
+  // uFlash: lightning, 0..1 for a split second
   const SKY = `
     uniform vec3 uLight; uniform float uNight; uniform float uTime;
+    uniform float uCloud; uniform float uHaze; uniform float uDusk; uniform float uMeteor; uniform float uFlash;
     vec3 skyBase(vec3 d){
       float h = max(d.y, 0.);
       float t = pow(h, .42);
       vec3 day = mix(vec3(.42,.67,.86), vec3(.03,.2,.55), t);
+      // sunset: a warm band on the horizon fading through rose into a violet blue
+      vec3 dusk = mix(vec3(1.,.5,.24), mix(vec3(.62,.36,.46), vec3(.1,.13,.34), smoothstep(.12,.6,h)), smoothstep(.0,.3,h));
+      day = mix(day, dusk, uDusk);
       vec3 nig = mix(vec3(.03,.055,.11), vec3(.003,.008,.026), t);
       float a = max(dot(d, uLight), 0.);
-      day += vec3(1.,.82,.55)*pow(a,8.)*.12 + vec3(1.,.93,.8)*pow(a,64.)*.45;
-      nig += vec3(.2,.28,.46)*pow(a,9.)*.5 + vec3(.5,.55,.7)*pow(a,90.)*.45;
-      vec2 cp = d.xz/(d.y+.12)*1.6 + vec2(uTime*.004, 0.);
-      float cl = smoothstep(.56,.84, fbm2(cp)) * smoothstep(.0,.22,d.y);
-      day = mix(day, vec3(.93,.95,.97)*(.85+.25*pow(a,4.)), cl*.6);
+      float open = 1. - .9*uCloud;
+      day += mix(vec3(1.,.82,.55)*pow(a,8.)*.12 + vec3(1.,.93,.8)*pow(a,64.)*.45,
+                 vec3(1.,.55,.22)*pow(a,4.)*.55 + vec3(1.,.72,.4)*pow(a,36.)*.7, uDusk) * open;
+      nig += (vec3(.2,.28,.46)*pow(a,9.)*.5 + vec3(.5,.55,.7)*pow(a,90.)*.45) * open;
+      vec2 cp = d.xz/(d.y+.12)*1.6 + vec2(uTime*(.004 + .01*uCloud), 0.);
+      float cov = mix(.56, .28, uCloud);
+      float cl = smoothstep(cov, cov + .28, fbm2(cp)) * smoothstep(.0,.22,d.y);
+      vec3 cDay = mix(vec3(.93,.95,.97)*(.85+.25*pow(a,4.)), vec3(1.,.6,.42)*(.55+.7*pow(a,3.)), uDusk);
+      cDay = mix(cDay, vec3(.36,.39,.43)*mix(1.,.6,uCloud*uCloud), uCloud);
+      day = mix(day, cDay, cl*mix(.6, .95, uCloud));
+      // overcast: the blue gives way to a flat grey, darker for a storm
+      day = mix(day, mix(vec3(.6,.64,.68), vec3(.44,.48,.53), t)*mix(1., .55, uCloud*uCloud), uCloud*.8);
       nig = mix(nig, vec3(.07,.09,.14)+vec3(.24,.27,.36)*pow(a,6.), cl*.55);
-      return mix(day, nig, uNight);
+      nig = mix(nig, vec3(.03,.036,.05), uCloud*.85);
+      vec3 col = mix(day, nig, uNight);
+      // fog: everything leans to one grey, most of all near the horizon
+      vec3 hz = mix(vec3(.7,.75,.79), vec3(.055,.065,.085), uNight);
+      col = mix(col, hz, uHaze*mix(1., .7, smoothstep(.0,.55,h)));
+      // lightning lights the clouds from inside
+      col += vec3(.8,.85,1.)*uFlash*(.35 + .65*cl)*mix(1.2, .9, uNight);
+      return col;
     }
     vec3 skyFull(vec3 d){
       vec3 col = skyBase(d);
       float a = dot(d, uLight);
-      float sun = smoothstep(.99952,.99972,a);
+      float clear = (1. - smoothstep(.25, .75, uCloud))*(1. - .85*uHaze);
+      float sun = smoothstep(mix(.99952,.9993,uDusk),mix(.99972,.99958,uDusk),a);
       float moon = smoothstep(.99962,.99976,a);
       vec3 t1 = normalize(cross(uLight, vec3(0.,1.,0.))); vec3 t2 = cross(t1, uLight);
       vec2 mp = vec2(dot(d,t1), dot(d,t2))/.0218;
       float mar = .8 + .2*smoothstep(.35,.7, vn(mp*2.2+3.1)) - .2*smoothstep(.45,.78, vn(mp*3.7+11.));
-      col += mix(vec3(9.,8.2,6.6)*sun, vec3(2.7,2.8,3.)*moon*mar, uNight);
+      col += mix(mix(vec3(9.,8.2,6.6), vec3(9.,4.6,1.8), uDusk)*sun, vec3(2.7,2.8,3.)*moon*mar, uNight)*clear;
       vec3 sd = d*220.; vec3 cell = floor(sd); float r = hash13(cell);
-      float st = step(.9965, r) * smoothstep(.45, .0, length(fract(sd)-.5));
+      float st = step(mix(.9965,.9925,uMeteor), r) * smoothstep(.45, .0, length(fract(sd)-.5));
       st *= (.55+.45*sin(uTime*2.+r*80.)) * smoothstep(.04,.3,d.y) * (1.-smoothstep(.985,.9995,a));
-      col += vec3(1.6,1.7,2.)*st*uNight;
+      col += vec3(1.6,1.7,2.)*st*uNight*clear;
+      // meteor shower: a few shooting stars at a time, each a short bright streak with a fading tail
+      if (uMeteor > .01){
+        vec2 q = vec2(atan(d.x, -d.z), asin(clamp(d.y, -1., 1.)));
+        for (int i = 0; i < 4; i++){
+          float fi = float(i), per = 1.9 + fi*1.1, cyc = uTime/per + fi*.37;
+          float k = floor(cyc), age = fract(cyc)*per, dur = .75 + .3*hash12(vec2(k, fi+5.));
+          if (age < dur){
+            vec2 s0 = vec2(hash12(vec2(k, fi))*1.3 - .65, .32 + hash12(vec2(fi, k+3.))*.42);
+            float side = hash12(vec2(k, fi+9.)) < .5 ? -1. : 1.;
+            float ang = .35 + hash12(vec2(k+7., fi))*.6;
+            vec2 dir = vec2(cos(ang)*side, -sin(ang));
+            float pr = age/dur, len = .22 + .12*hash12(vec2(fi+2., k));
+            vec2 head = s0 + dir*len*pr, tail = head - dir*min(len*pr, .13);
+            vec2 pa = q - tail, ba = head - tail;
+            float hh = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-6), 0., 1.);
+            float m = smoothstep(.0022, .0, length(pa - ba*hh)) * hh * hh * sin(pr*3.1416);
+            col += vec3(2.2,2.3,2.6)*m*uMeteor*clear*uNight;
+          }
+        }
+      }
       return col;
     }
   `;
@@ -114,8 +155,11 @@ export function initScene(dive){
   const lightDir = new THREE.Vector3(), lightDirW = new THREE.Vector3();
   const sunDir = new THREE.Vector3(narrow ? -.03 : .12, narrow ? .45 : .34, narrow ? -.89 : -.93).normalize();
   const moonDir = new THREE.Vector3(narrow ? -.04 : -.05, narrow ? .5 : .42, narrow ? -.86 : -.9).normalize();
+  // weather, shared by the sky, the sea surface and the rain (see weather.js for the states)
+  const WX = { uCloud:{value:0}, uHaze:{value:0}, uDusk:{value:0}, uMeteor:{value:0}, uFlash:{value:0}, uRain:{value:0} };
+  const duskDir = new THREE.Vector3(narrow ? -.02 : .1, .075, -1).normalize();
   const skyMat = new THREE.ShaderMaterial({
-    uniforms:{uLight:{value:lightDir}, uNight:{value:0}, uTime:{value:0}},
+    uniforms:{uLight:{value:lightDir}, uNight:{value:0}, uTime:{value:0}, ...WX},
     vertexShader:`varying vec3 vDir; void main(){ vDir = position; vec4 mv = modelViewMatrix*vec4(position,1.); gl_Position = projectionMatrix*mv; gl_Position.z = gl_Position.w; }`,
     fragmentShader:NOISE + SKY + `varying vec3 vDir; void main(){ gl_FragColor = vec4(skyFull(normalize(vDir)), 1.); }`,
     side:THREE.BackSide, depthWrite:false
@@ -125,31 +169,36 @@ export function initScene(dive){
 
   /* ---------- Sea surface (seen from above and from below) ---------- */
   const surfMat = new THREE.ShaderMaterial({
-    uniforms:{uTime:{value:0}, uFade:{value:1}, uFog:{value:new THREE.Color()}, uNight:{value:0}, uLight:{value:lightDir}, uLightW:{value:lightDirW}},
+    uniforms:{uTime:{value:0}, uFade:{value:1}, uFog:{value:new THREE.Color()}, uNight:{value:0}, uLight:{value:lightDir}, uLightW:{value:lightDirW}, ...WX},
     vertexShader:`uniform float uTime; varying vec3 vW;` + WAVES + `
       void main(){ vec4 w = modelMatrix*vec4(position,1.); w.y += wav(w.xz); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
     fragmentShader:NOISE + SKY + WAVES + `
-      uniform float uFade; uniform vec3 uFog; uniform vec3 uLightW; varying vec3 vW;
+      uniform float uFade; uniform vec3 uFog; uniform vec3 uLightW; uniform float uRain; varying vec3 vW;
       void main(){
         vec2 p = vW.xz; float e = .08;
         float hx = wav(p+vec2(e,0.))-wav(p-vec2(e,0.)); float hz = wav(p+vec2(0.,e))-wav(p-vec2(0.,e));
         vec2 q = p*1.7 + uTime*vec2(.3,.2);
         float r0 = vn(q); float r1 = r0-vn(q+vec2(.13,0.)); float r2 = r0-vn(q+vec2(0.,.13));
-        vec3 n = normalize(vec3(-hx/(2.*e) + r1*.8, 1., -hz/(2.*e) + r2*.8));
+        // rain pockmarks the water with fine, quick ripples
+        vec2 rq = p*6.5 + uTime*vec2(2.1,-1.7); float s0 = vn(rq);
+        vec2 rr2 = vec2(s0 - vn(rq+vec2(.09,0.)), s0 - vn(rq+vec2(0.,.09)))*2.6*uRain;
+        vec3 n = normalize(vec3(-hx/(2.*e) + r1*.8 + rr2.x, 1., -hz/(2.*e) + r2*.8 + rr2.y));
         vec3 vd = normalize(vW - cameraPosition);
         float dist = length(vW.xz - cameraPosition.xz);
         vec3 col;
         if (cameraPosition.y > vW.y){
           vec3 rf = reflect(vd, n); rf.y = abs(rf.y);
           float fres = .02 + .98*pow(1.-max(dot(-vd, n), 0.), 5.);
-          vec3 deep = mix(vec3(.0,.09,.16), vec3(.002,.008,.02), uNight);
+          vec3 deep = mix(vec3(.0,.09,.16), vec3(.002,.008,.02), uNight)*mix(1., .62, uCloud);
+          deep = mix(deep, vec3(.16,.08,.07), uDusk*(1.-uNight)*.5);
           float crest = smoothstep(.0,.25, wav(p)+.1);
           deep += mix(vec3(.02,.12,.12), vec3(.0,.01,.02), uNight)*crest;
           col = mix(deep, skyBase(rf)*mix(.7,.85,uNight), fres);
           float rl = max(dot(rf, uLight), 0.);
-          col += mix(vec3(14.,11.,8.), vec3(4.,4.3,4.8), uNight) * pow(rl, mix(700.,1100.,uNight));
-          col += mix(vec3(.9,.8,.6), vec3(.22,.26,.36), uNight) * pow(rl, 40.) * .55;
-          col = mix(skyBase(normalize(vec3(vd.x, .001, vd.z))), col, exp(-dist*.0028));
+          float glint = (1. - smoothstep(.25, .75, uCloud))*(1. - .8*uHaze);
+          col += mix(mix(vec3(14.,11.,8.), vec3(14.,7.,2.6), uDusk), vec3(4.,4.3,4.8), uNight) * pow(rl, mix(mix(700.,260.,uDusk),1100.,uNight)) * glint;
+          col += mix(mix(vec3(.9,.8,.6), vec3(1.,.5,.2), uDusk), vec3(.22,.26,.36), uNight) * pow(rl, mix(40.,14.,uDusk)) * .55 * glint;
+          col = mix(skyBase(normalize(vec3(vd.x, .001, vd.z))), col, exp(-dist*(.0028 + .03*uHaze)));
         } else {
           float c = smoothstep(.55, 1.5, cau(p*.32, uTime));
           float win = smoothstep(.6, .72, vd.y + n.x*.06);
@@ -158,7 +207,8 @@ export function initScene(dive){
           col = mix(outside, inside, win);
           vec3 vr = normalize(vd + vec3(n.x,0.,n.z)*.25);
           float a = max(dot(vr, uLightW), 0.);
-          col += (mix(vec3(6.,5.5,4.4), vec3(2.,2.2,2.5), uNight)*smoothstep(.9975,.999,a) + mix(vec3(1.2,1.2,1.), vec3(.2,.26,.38), uNight)*pow(a,80.))*win;
+          col += (mix(vec3(6.,5.5,4.4), vec3(2.,2.2,2.5), uNight)*smoothstep(.9975,.999,a) + mix(vec3(1.2,1.2,1.), vec3(.2,.26,.38), uNight)*pow(a,80.))*win*(1. - .85*uCloud);
+          col += vec3(.6,.65,.8)*uFlash*win*.8;
           col *= uFade;
           col = mix(uFog, col, exp(-dist*.035));
         }
@@ -168,6 +218,46 @@ export function initScene(dive){
   });
   const surfGeo = new THREE.PlaneGeometry(1200, 1200, lowPower ? 160 : 240, lowPower ? 160 : 240); surfGeo.rotateX(-Math.PI / 2);
   const surface = new THREE.Mesh(surfGeo, surfMat); surface.position.y = SURF; surface.frustumCulled = false; scene.add(surface);
+
+  /* ---------- Rain and lightning (weather.js picks when) ---------- */
+  // Rain: short streaks falling in a box that travels with the camera, seen only above the water;
+  // the drops that fall below the sea surface are hidden by it.
+  const RAIN_N = lowPower ? 700 : 1500;
+  const rainGeo = new THREE.BufferGeometry();
+  { const pos = new Float32Array(RAIN_N * 6), seed = new Float32Array(RAIN_N * 6), tip = new Float32Array(RAIN_N * 2);
+    // Math.random, not the seeded rand: the world layout drawn after this must not change
+    for (let i = 0; i < RAIN_N; i++){ const a = Math.random(), b = Math.random(), c = Math.random();
+      for (const k of [0, 1]){ seed.set([a, b, c], (i * 2 + k) * 3); tip[i * 2 + k] = k; } }
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); rainGeo.setAttribute('seed', new THREE.BufferAttribute(seed, 3)); rainGeo.setAttribute('tip', new THREE.BufferAttribute(tip, 1)); }
+  const rainMat = new THREE.ShaderMaterial({
+    uniforms:{ uTime:{value:0}, uCam:{value:new THREE.Vector3()}, uRain:WX.uRain, uNight:{value:0} },
+    vertexShader:`uniform float uTime; uniform vec3 uCam; uniform float uRain; attribute vec3 seed; attribute float tip; varying float vA;
+      void main(){
+        vec3 box = vec3(26., 13., 24.);
+        vec3 p = seed*box; p.y = mod(seed.y*box.y - uTime*(10. + seed.x*4.), box.y);
+        vec3 w = uCam + vec3(-13., -3., -21.) + p - normalize(vec3(.14, -1., .04))*tip*(.35 + seed.z*.25);
+        vA = (1. - tip) * uRain * step(seed.z, .35 + .65*uRain);
+        gl_Position = projectionMatrix*viewMatrix*vec4(w, 1.);
+      }`,
+    fragmentShader:`uniform float uNight; varying float vA; void main(){ gl_FragColor = vec4(mix(vec3(.5,.56,.63), vec3(.45,.5,.6), uNight), vA*mix(.55, .42, uNight)); }`,
+    transparent:true, depthWrite:false, fog:false
+  });
+  const rain = new THREE.LineSegments(rainGeo, rainMat); rain.frustumCulled = false; rain.visible = false; scene.add(rain);
+  // Lightning: a jagged bolt far out over the sea, redrawn for every strike
+  const BOLT_N = 16;
+  const boltGeo = new THREE.BufferGeometry(); boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BOLT_N * 3), 3));
+  const boltMat = new THREE.LineBasicMaterial({ color: 0xeef2ff, transparent: true, opacity: 0, depthWrite: false, fog: false });
+  const bolt = new THREE.Line(boltGeo, boltMat); bolt.frustumCulled = false; bolt.visible = false; scene.add(bolt);
+  function newBolt(){
+    const arr = boltGeo.attributes.position.array, az = (Math.random() - .5) * 1.1, R = 520;
+    let x = Math.sin(az) * R, z = -Math.cos(az) * R, y = 260;
+    for (let i = 0; i < BOLT_N; i++){
+      arr.set([x, y, z], i * 3);
+      y -= 260 / (BOLT_N - 1) * (.7 + Math.random() * .6); x += (Math.random() - .5) * 34; z += (Math.random() - .5) * 18;
+    }
+    boltGeo.attributes.position.needsUpdate = true;
+  }
+  const storm = { next: 2 + Math.random() * 4, t: -1 };
 
   /* ---------- Lights ---------- */
   const hemi = new THREE.HemisphereLight(0xc8f4ff, 0x0b2a3a, 1.7);
@@ -761,6 +851,17 @@ export function initScene(dive){
     return out.copy(w[2]).lerp(w[3], Math.min(1, (d - 26) / 12));
   }
   let night = dive.night ? 1 : 0;
+  const WX_GOALS = {
+    clear: { cloud: 0, haze: 0, rain: 0 },
+    rain: { cloud: .8, haze: .3, rain: .75 },
+    storm: { cloud: 1, haze: .35, rain: 1 },
+    fog: { cloud: .35, haze: .88, rain: 0 },
+    special: { cloud: 0, haze: 0, rain: 0 },
+  };
+  // start already in this visit's weather, no fade-in on load
+  const wx0 = WX_GOALS[dive.weather] || WX_GOALS.clear;
+  const wx = { ...wx0, dusk: dive.weather === 'special' && !dive.night ? 1 : 0, meteor: dive.weather === 'special' && dive.night ? 1 : 0 };
+  const lDusk = new THREE.Color('#ffb27a');
 
   let pointer = {x:0, y:0}, pSmooth = {x:0, y:0};
   if (!small) addEventListener('pointermove', e => { pointer.x = e.clientX / innerWidth - .5; pointer.y = e.clientY / innerHeight - .5; });
@@ -864,7 +965,26 @@ export function initScene(dive){
     const n = night;
 
     // sun or moon direction, and its refracted version under water
-    lightDir.copy(sunDir).lerp(moonDir, n).normalize();
+    // weather: ease toward what this visit drew (weather.js); the special state is a sunset by
+    // day and a meteor shower by night, so it follows the day/night switch
+    const wGoal = WX_GOALS[dive.weather] || WX_GOALS.clear, wk = dive.reduce ? 1 : Math.min(1, dt * 1.5);
+    wx.cloud += (wGoal.cloud - wx.cloud) * wk; wx.haze += (wGoal.haze - wx.haze) * wk; wx.rain += (wGoal.rain - wx.rain) * wk;
+    const special = dive.weather === 'special' ? 1 : 0;
+    wx.dusk += (special * (1 - (dive.night ? 1 : 0)) - wx.dusk) * wk; wx.meteor += (special * (dive.night ? 1 : 0) - wx.meteor) * wk;
+    // lightning: a strike every few seconds, two quick flashes and a fading glow (never with reduced motion)
+    let flash = 0;
+    if (dive.weather === 'storm' && !dive.reduce){
+      storm.next -= dt;
+      if (storm.next < 0){ storm.t = 0; storm.next = 5 + Math.random() * 9; newBolt(); }
+    }
+    if (storm.t >= 0){
+      storm.t += dt; const f = storm.t;
+      flash = f < .07 ? 1 : f < .14 ? .12 : f < .22 ? .75 : .75 * Math.exp(-(f - .22) * 9);
+      if (f > .7){ storm.t = -1; flash = 0; }
+    }
+    WX.uCloud.value = wx.cloud; WX.uHaze.value = wx.haze; WX.uRain.value = wx.rain; WX.uDusk.value = wx.dusk; WX.uMeteor.value = wx.meteor; WX.uFlash.value = flash;
+
+    lightDir.copy(sunDir).lerp(duskDir, wx.dusk).lerp(moonDir, n).normalize();
     const sinA = Math.hypot(lightDir.x, lightDir.z), sinW = sinA / 1.333, cosW = Math.sqrt(1 - sinW * sinW);
     lightDirW.set(lightDir.x / sinA * sinW, cosW, lightDir.z / sinA * sinW);
 
@@ -889,7 +1009,7 @@ export function initScene(dive){
 
     // atmosphere under water
     ramp(dayW, d, tmpA); ramp(nightW, d, tmpB); fogCol.copy(tmpA).lerp(tmpB, n);
-    scene.fog.density = mix(.03 + d * .0006, .042 + d * .0005, n);
+    scene.fog.density = mix(.03 + d * .0006, .042 + d * .0005, n) * (1 + .4 * wx.haze + .15 * wx.cloud);
     scene.fog.color.copy(fogCol);
     sky.visible = isAbove;
     sky.position.copy(camera.position);
@@ -900,7 +1020,15 @@ export function initScene(dive){
     hemi.color.copy(lSurf).lerp(lDeep, Math.min(1, d / 18)).lerp(tmpA.copy(mSurf).lerp(mDeep, Math.min(1, d / 14)), n);
     sun.intensity = mix(mix(2.4 * Math.exp(-d / 12), .7 * Math.exp(-d / 8), n), mix(2.8, .6, n), air);
     sun.color.copy(lSurf).lerp(lDeep, Math.min(1, d / 14)).lerp(tmpA.copy(mSurf).lerp(mDeep, Math.min(1, d / 12)), n);
-    if (isAbove) sun.color.copy(lAir).lerp(mAir, n);
+    if (isAbove) sun.color.copy(lAir).lerp(lDusk, wx.dusk).lerp(mAir, n);
+    else sun.color.lerp(lDusk, wx.dusk * .35 * (1 - n));
+    // clouds and fog take the edge off the sun; lightning lights everything for an instant
+    sun.intensity *= (1 - .6 * wx.cloud) * (1 - .3 * wx.haze) * (1 - .25 * wx.dusk * (1 - air));
+    hemi.intensity *= (1 - .3 * wx.cloud) * (1 - .15 * wx.dusk);
+    hemi.intensity += flash * (air ? 2.6 : 1.8 * Math.exp(-d / 9));
+    rain.visible = isAbove && wx.rain > .01;
+    rainMat.uniforms.uTime.value = t; rainMat.uniforms.uCam.value.copy(camera.position); rainMat.uniforms.uNight.value = n;
+    bolt.visible = isAbove && flash > .02; boltMat.opacity = Math.min(1, flash * 1.4);
     sun.target.position.copy(camera.position);
     sun.position.copy(camera.position).addScaledVector(isAbove ? lightDir : lightDirW, 30);
 
@@ -911,13 +1039,14 @@ export function initScene(dive){
       boat.position.y = SURF + swell(bx, bz, t) * .8 - .05;
       boat.rotation.set((swell(bx, bz + 3, t) - swell(bx, bz - 3, t)) * .08, boat.userData.yaw + Math.sin(t * .05) * .06, (swell(bx + 2, bz, t) - swell(bx - 2, bz, t)) * .14 + Math.sin(t * .6) * .02, 'YXZ');
       boatHaze.uHaze.value.setRGB(.42, .67, .86).lerp(tmpB.setRGB(.03, .055, .11), n);
-      boatHaze.uHazeK.value = mix(.22, .42, n);
+      boatHaze.uHazeK.value = Math.min(.96, mix(.22, .42, n) + .6 * wx.haze + .25 * wx.cloud);
+      boatHaze.uHaze.value.lerp(tmpB.setRGB(.7, .75, .79).lerp(tmpA.setRGB(.055, .065, .085), n), wx.haze).lerp(tmpB.setRGB(.5, .54, .58).multiplyScalar(1 - .9 * n), wx.cloud * .7 * (1 - wx.haze));
     }
     surface.visible = camY > -24;
     surfMat.uniforms.uTime.value = t; surfMat.uniforms.uFade.value = Math.exp(-d / 7); surfMat.uniforms.uFog.value.copy(fogCol); surfMat.uniforms.uNight.value = n;
-    causU.uTime.value = t; causU.uCaus.value = 1 - n;
+    causU.uTime.value = t; causU.uCaus.value = (1 - n) * (1 - .8 * wx.cloud) * (1 - .4 * wx.haze);
 
-    const rayOp = mix(Math.exp(-d / 6), .4 * Math.exp(-d / 7), n) * (isAbove ? 0 : 1);
+    const rayOp = mix(Math.exp(-d / 6), .4 * Math.exp(-d / 7), n) * (isAbove ? 0 : 1) * (1 - .75 * wx.cloud) * (1 - .45 * wx.haze);
     rays.forEach(r => { r.visible = rayOp > .02; if (!r.visible) return; r.material.uniforms.uOpacity.value = rayOp; r.material.uniforms.uTime.value = t; r.material.uniforms.uNight.value = n; orientShaft(r); });
     snow.uniforms.uTime.value = t; snow.uniforms.uOpacity.value = mix(.55 - smooth(10, 40, d) * .35, .3, n);
     const bio = mix(smooth(17, 34, d), .3 + smooth(2, 18, d) * .7, n) * (isAbove ? 0 : 1);

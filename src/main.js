@@ -2,6 +2,7 @@ import './styles.css';
 import { inject } from '@vercel/analytics';
 import localDives from './data/dives.json';
 import { summarize, sac, statOn, normalizeDive } from './lib/logbook.js';
+import { pickWeather, weatherLabel } from './weather.js';
 
 var MAXD = 40;
 var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -330,15 +331,19 @@ function depthAt(sy){
 }
 function tempAt(d){ return d < 8 ? 21.5 - d * 0.12 : d < 22 ? 20.54 - (d - 8) * 0.36 : 15.5 - (d - 22) * 0.07; }
 
-var dive = {depth:0, target:0, reduce:reduce, night:false};
-var root = document.documentElement, modeBtns = document.querySelectorAll('.mode button');
+// the weather at the surface is drawn once per visit (see weather.js)
+var wx = pickWeather();
+var dive = {depth:0, target:0, reduce:reduce, night:false, weather:wx.weather};
+var root = document.documentElement, modeBtns = document.querySelectorAll('.mode button'), wxLabel = document.getElementById('wxLabel');
 function setMode(m, save){
   root.setAttribute('data-dive', m);
   dive.night = m === 'night';
   modeBtns.forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false'); });
   if (save) { try { localStorage.setItem('dive-mode', m); } catch (e) {} }
+  var w = weatherLabel(dive.weather, dive.night);
+  if (wxLabel){ wxLabel.textContent = w ? ' · ' + w : ''; }
 }
-setMode(root.getAttribute('data-dive') === 'night' ? 'night' : 'day', false);
+setMode(wx.mode || (root.getAttribute('data-dive') === 'night' ? 'night' : 'day'), false);
 modeBtns.forEach(function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode, true); }); });
 new MutationObserver(function(){
   var th = root.getAttribute('data-theme');

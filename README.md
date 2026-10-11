@@ -87,6 +87,10 @@ En la superficie, a lo lejos, flota el barco tienda de Beedle de The Wind Waker 
 
 Al llegar al fondo, la luz del submarinista se posa sobre una máscara nomai de Outer Wilds medio enterrada en la arena. El sitio se calcula para que quede siempre a la vista (a la derecha del texto en ordenador, debajo en el móvil); es el grupo `easterEgg` de `src/scene.js`.
 
+## Tiempo en la superficie
+
+Cada visita sortea el tiempo que hace arriba (`src/weather.js`): despejado, lluvia, tormenta, niebla o un estado especial que es atardecer de día y lluvia de estrellas de noche (sigue al botón Día/Noche). El sorteo va con pesos (despejado sale más a menudo) y nunca repite el de la visita anterior. Se nota sobre todo en la superficie (cielo, mar, lluvia, relámpagos), pero también bajo el agua: con nubes entra menos luz y menos cáusticas, la niebla enturbia el agua y los relámpagos iluminan los primeros metros. Con «reducir movimiento» la tormenta no destella. Para forzar uno: `?tiempo=lluvia`, `tormenta`, `niebla`, `atardecer`, `estrellas` o `despejado`.
+
 ## Créditos
 
 Modelo 3D del submarinista: [«Diver»](https://sketchfab.com/3d-models/diver-9a415258dec4449c9faf28f11a5b6831) de [ucdavisterc](https://sketchfab.com/ucdavisterc), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Convertido a low poly (malla simplificada y colores planos) con `scripts/lowpoly-model.mjs`.
