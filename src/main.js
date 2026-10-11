@@ -149,7 +149,7 @@ function renderLogbook(dives, settings){
       ['sac', sum.sac, sum.sac != null ? fmt(sum.sac) : '', 'L/min', 'consumo de aire en superficie']
     ].filter(function(t){ return show[t[0]] && t[1] != null && t[1] !== 0; }).map(function(t){ return t.slice(2); });
     statsEl.innerHTML = tiles.map(function(s){
-      return '<div class="stat"><b>' + s[0] + (s[1] ? '<small>' + s[1] + '</small>' : '') + '</b><span>' + s[2] + '</span></div>';
+      return '<div class="stat' + (String(s[0]).indexOf('<small>') > -1 ? ' stat-long' : '') + '"><b>' + s[0] + (s[1] ? '<small>' + s[1] + '</small>' : '') + '</b><span>' + s[2] + '</span></div>';
     }).join('');
     var rec = [
       ['maxDepth', 'Inmersión más profunda', sum.deepest, sum.deepest && fmt(sum.deepest.maxDepth), 'm'],
