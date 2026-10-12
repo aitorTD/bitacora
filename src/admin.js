@@ -107,7 +107,7 @@ const sw = (act, on, label, title) =>
   `<button class="switch" type="button" role="switch" aria-checked="${on}" data-act="${act}" title="${esc(title)}"><span class="knob" aria-hidden="true"></span><span class="sw-label">${label}</span></button>`;
 
 const STAT_LABELS = [['count', 'Nº'], ['time', 'Tiempo'], ['maxDepth', 'Máx.'], ['avgDepth', 'Media'], ['minTemp', 'Agua'], ['sac', 'SAC']];
-const STAT_TITLES = { count: 'número de inmersiones', time: 'tiempo bajo el agua y la más larga', maxDepth: 'profundidad máxima y la más profunda', avgDepth: 'profundidad media', minTemp: 'agua más fría', sac: 'consumo de aire (SAC)' };
+const STAT_TITLES = { count: 'número de inmersiones', time: 'tiempo bajo el agua y la más larga', maxDepth: 'profundidad máxima y la más profunda', avgDepth: 'profundidad media (media de las máximas, como Pro Dive)', minTemp: 'agua más fría', sac: 'consumo de aire (SAC)' };
 
 // the saved list shows a page at a time, so the cards below never get buried under a long log
 const PAGE = 8;

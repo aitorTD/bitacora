@@ -41,9 +41,11 @@ export const statOn = (d, key) => !(d.statsOff || []).includes(key) && !(key ===
 export function summarize(dives){
   if (!dives.length) return null;
   const on = key => dives.filter(d => statOn(d, key));
-  const timed = on('time'), avgs = on('avgDepth').filter(d => d.avgDepth > 0 && d.duration);
+  const timed = on('time');
   const totalTime = timed.reduce((s, d) => s + (d.duration || 0), 0);
-  const avgTime = avgs.reduce((s, d) => s + d.duration, 0);
+  // "profundidad media" as Pro Dive counts it: the mean of each dive's maximum depth. Dives logged by
+  // hand have a maximum but no average, so averaging the averages would leave half the log out.
+  const depths = on('avgDepth').map(d => d.maxDepth).filter(v => v > 0);
   const pickBy = (list, key, better) => list.filter(d => key(d) != null).reduce((a, b) => (a == null || better(key(b), key(a)) ? b : a), null);
   const deepest = pickBy(on('maxDepth'), d => d.maxDepth, (b, a) => b > a);
   const longest = pickBy(timed, d => d.duration, (b, a) => b > a);
@@ -53,7 +55,7 @@ export function summarize(dives){
     count: on('count').length,
     totalTime: timed.length ? totalTime : null,
     maxDepth: deepest?.maxDepth ?? null,
-    avgDepth: avgTime ? avgs.reduce((s, d) => s + d.avgDepth * d.duration, 0) / avgTime : null,
+    avgDepth: depths.length ? depths.reduce((s, v) => s + v, 0) / depths.length : null,
     minTemp: coldest?.minTemp ?? null,
     sites: new Set(dives.map(d => d.site?.name)).size,
     sac: sacs.length ? sacs.reduce((s, v) => s + v, 0) / sacs.length : null,
